@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
@@ -23,7 +24,7 @@ type System struct {
 	orderedMutators []types.Mutator
 	mutatorsMap     map[types.ID]types.Mutator
 	mux             sync.RWMutex
-	rep             *reporter
+	reporter        *reporter
 }
 
 // NewSystem initializes an empty mutation system.
@@ -37,13 +38,14 @@ func NewSystem() (*System, error) {
 		schemaDB:        *schema.New(),
 		orderedMutators: make([]types.Mutator, 0),
 		mutatorsMap:     make(map[types.ID]types.Mutator),
-		rep:             rep,
+		reporter:        rep,
 	}, nil
 }
 
 // Upsert updates or insert the given object, and returns
 // an error in case of conflicts.
 func (s *System) Upsert(m types.Mutator) error {
+	timeStart := time.Now()
 	s.mux.Lock()
 	defer s.mux.Unlock()
 
@@ -52,10 +54,19 @@ func (s *System) Upsert(m types.Mutator) error {
 		return nil
 	}
 
+	ingestionStatus := MutatorStatusError
+	defer func() {
+		if s.reporter != nil {
+			err := s.reporter.reportMutatorIngestionRequest(ingestionStatus, time.Since(timeStart))
+			if err != nil {
+				log.Error(err, "failed to report ingestion request")
+			}
+		}
+	}()
+
 	toAdd := m.DeepCopy()
 
 	// Checking schema consistency only if the mutator has schema
-	var err error
 	if withSchema, ok := toAdd.(schema.MutatorWithSchema); ok {
 		err := s.schemaDB.Upsert(withSchema)
 		if err != nil {
@@ -66,25 +77,29 @@ func (s *System) Upsert(m types.Mutator) error {
 
 	s.mutatorsMap[toAdd.ID()] = toAdd
 
+	// This logic can no longer return an error, so we can safely say that ingestion was successful
+	ingestionStatus = MutatorStatusActive
+
 	i := sort.Search(len(s.orderedMutators), func(i int) bool {
 		return greaterOrEqual(s.orderedMutators[i].ID(), toAdd.ID())
 	})
 
 	if i == len(s.orderedMutators) { // Adding to the bottom of the list
 		s.orderedMutators = append(s.orderedMutators, toAdd)
-		return err
+		return nil
 	}
 
 	found := equal(s.orderedMutators[i].ID(), toAdd.ID())
 	if found {
 		s.orderedMutators[i] = toAdd
-		return err
+		return nil
 	}
 
 	s.orderedMutators = append(s.orderedMutators, nil)
 	copy(s.orderedMutators[i+1:], s.orderedMutators[i:])
 	s.orderedMutators[i] = toAdd
-	return err
+
+	return nil
 }
 
 // Mutate applies the mutation in place to the given object. Returns

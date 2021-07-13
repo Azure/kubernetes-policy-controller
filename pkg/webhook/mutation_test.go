@@ -19,7 +19,10 @@ import (
 )
 
 func TestWebhookAssign(t *testing.T) {
-	sys := mutation.NewSystem()
+	sys, err := mutation.NewSystem()
+	if err != nil {
+		t.Error("Failed to create mutation system")
+	}
 
 	v := &mutationsv1alpha1.Assign{
 		ObjectMeta: metav1.ObjectMeta{Name: "AddFoo"},
@@ -31,7 +34,7 @@ func TestWebhookAssign(t *testing.T) {
 			},
 		},
 	}
-	if err := mutators.IsValidAssign(v); err != nil {
+	if err = mutators.IsValidAssign(v); err != nil {
 		t.Fatal(err)
 	}
 
@@ -86,7 +89,10 @@ func TestWebhookAssign(t *testing.T) {
 }
 
 func TestWebhookAssignMetadata(t *testing.T) {
-	sys := mutation.NewSystem()
+	sys, err := mutation.NewSystem()
+	if err != nil {
+		t.Error("Failed to create mutation system")
+	}
 
 	v := &mutationsv1alpha1.AssignMetadata{
 		ObjectMeta: metav1.ObjectMeta{Name: "AddFoo"},
@@ -97,7 +103,7 @@ func TestWebhookAssignMetadata(t *testing.T) {
 			},
 		},
 	}
-	if err := mutators.IsValidAssignMetadata(v); err != nil {
+	if err = mutators.IsValidAssignMetadata(v); err != nil {
 		t.Fatal(err)
 	}
 

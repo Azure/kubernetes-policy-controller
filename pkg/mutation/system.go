@@ -23,15 +23,22 @@ type System struct {
 	orderedMutators []types.Mutator
 	mutatorsMap     map[types.ID]types.Mutator
 	mux             sync.RWMutex
+	rep             *reporter
 }
 
 // NewSystem initializes an empty mutation system.
-func NewSystem() *System {
+func NewSystem() (*System, error) {
+	rep, err := newStatsReporter()
+	if err != nil {
+		return nil, err
+	}
+
 	return &System{
 		schemaDB:        *schema.New(),
 		orderedMutators: make([]types.Mutator, 0),
 		mutatorsMap:     make(map[types.ID]types.Mutator),
-	}
+		rep:             rep,
+	}, nil
 }
 
 // Upsert updates or insert the given object, and returns

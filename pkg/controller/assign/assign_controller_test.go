@@ -95,7 +95,10 @@ func TestReconcile(t *testing.T) {
 	// force mutation to be enabled
 	*mutation.MutationEnabled = true
 
-	mSys := mutation.NewSystem()
+	mSys, err := mutation.NewSystem()
+	if err != nil {
+		t.Error("Failed to create mutation system")
+	}
 	tracker, err := readiness.SetupTracker(mgr, true)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	os.Setenv("POD_NAME", "no-pod")

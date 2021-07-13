@@ -181,14 +181,17 @@ func TestSorting(t *testing.T) {
 
 	for _, tc := range table {
 		t.Run(tc.tname, func(t *testing.T) {
-			c := NewSystem()
+			c, err := NewSystem()
+			if err != nil {
+				t.Error("Failed to create mutation system")
+			}
 			for i, m := range tc.initial {
 				err := c.Upsert(m)
 				if err != nil {
 					t.Errorf("%s: Failed inserting %dth object", tc.tname, i)
 				}
 			}
-			err := tc.action(c)
+			err = tc.action(c)
 			if err != nil {
 				t.Errorf("%s: test action failed %v", tc.tname, err)
 			}
@@ -285,7 +288,10 @@ func TestMutation(t *testing.T) {
 			}
 			toMutate := &unstructured.Unstructured{Object: converted}
 
-			c := NewSystem()
+			c, err := NewSystem()
+			if err != nil {
+				t.Error("Failed to create mutation system")
+			}
 			for i, m := range tc.mutations {
 				err := c.Upsert(m)
 				if err != nil {
@@ -346,8 +352,11 @@ func TestSystem_DontApplyConflictingMutations(t *testing.T) {
 		Labels: map[string]string{"active": "true"},
 	}
 
-	s := NewSystem()
-	err := s.Upsert(foo)
+	s, err := NewSystem()
+	if err != nil {
+		t.Error("Failed to create mutation system")
+	}
+	err = s.Upsert(foo)
 	if err != nil {
 		t.Fatalf("got Upsert() error = %v, want <nil>", err)
 	}
@@ -422,8 +431,11 @@ func TestSystem_DontApplyConflictingMutationsRemoveOriginal(t *testing.T) {
 	}
 
 	// Put System in an inconsistent state.
-	s := NewSystem()
-	err := s.Upsert(foo)
+	s, err := NewSystem()
+	if err != nil {
+		t.Error("Failed to create mutation system")
+	}
+	err = s.Upsert(foo)
 	if err != nil {
 		t.Fatalf("got Upsert() error = %v, want <nil>", err)
 	}
@@ -473,8 +485,11 @@ func TestSystem_EarliestConflictingMutatorWins(t *testing.T) {
 	}
 
 	// Put System in an inconsistent state.
-	s := NewSystem()
-	err := s.Upsert(foo)
+	s, err := NewSystem()
+	if err != nil {
+		t.Error("Failed to create mutation system")
+	}
+	err = s.Upsert(foo)
 	if err != nil {
 		t.Fatalf("got Upsert() error = %v, want <nil>", err)
 	}

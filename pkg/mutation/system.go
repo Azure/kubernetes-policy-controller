@@ -47,6 +47,7 @@ func NewSystem() (*System, error) {
 // Upsert updates or insert the given object, and returns
 // an error in case of conflicts.
 func (s *System) Upsert(m types.Mutator) error {
+	defer s.reportMutatorsStatus()
 	timeStart := time.Now()
 	s.mux.Lock()
 	defer s.mux.Unlock()
@@ -223,6 +224,7 @@ func logAppliedMutations(message string, mutationUUID uuid.UUID, obj *unstructur
 
 // Remove removes the mutator from the mutation system.
 func (s *System) Remove(id types.ID) error {
+	defer s.reportMutatorsStatus()
 	s.mux.Lock()
 	defer s.mux.Unlock()
 
@@ -274,6 +276,9 @@ func (s *System) reportMutatorsStatus() {
 }
 
 func (s *System) tallyStatus() map[MutatorIngestionStatus]int {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+
 	statusTally := make(map[MutatorIngestionStatus]int)
 	for _, status := range s.ingestionStatusMap {
 		statusTally[status]++

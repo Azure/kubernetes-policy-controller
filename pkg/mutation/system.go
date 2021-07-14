@@ -17,14 +17,15 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-// System keeps the list of mutations and
+// System keeps the list of mutators and
 // provides an interface to apply mutations.
 type System struct {
-	schemaDB        schema.DB
-	orderedMutators []types.Mutator
-	mutatorsMap     map[types.ID]types.Mutator
-	mux             sync.RWMutex
-	reporter        *reporter
+	schemaDB           schema.DB
+	orderedMutators    []types.Mutator
+	mutatorsMap        map[types.ID]types.Mutator
+	mux                sync.RWMutex
+	reporter           *reporter
+	ingestionStatusMap map[types.ID]MutatorIngestionStatus
 }
 
 // NewSystem initializes an empty mutation system.
@@ -35,10 +36,11 @@ func NewSystem() (*System, error) {
 	}
 
 	return &System{
-		schemaDB:        *schema.New(),
-		orderedMutators: make([]types.Mutator, 0),
-		mutatorsMap:     make(map[types.ID]types.Mutator),
-		reporter:        rep,
+		schemaDB:           *schema.New(),
+		orderedMutators:    make([]types.Mutator, 0),
+		mutatorsMap:        make(map[types.ID]types.Mutator),
+		reporter:           rep,
+		ingestionStatusMap: make(map[types.ID]MutatorIngestionStatus),
 	}, nil
 }
 
@@ -54,10 +56,10 @@ func (s *System) Upsert(m types.Mutator) error {
 		return nil
 	}
 
-	ingestionStatus := MutatorStatusError
+	s.ingestionStatusMap[m.ID()] = MutatorStatusError
 	defer func() {
 		if s.reporter != nil {
-			err := s.reporter.reportMutatorIngestionRequest(ingestionStatus, time.Since(timeStart))
+			err := s.reporter.reportMutatorIngestionRequest(s.ingestionStatusMap[m.ID()], time.Since(timeStart))
 			if err != nil {
 				log.Error(err, "failed to report ingestion request")
 			}
@@ -78,7 +80,7 @@ func (s *System) Upsert(m types.Mutator) error {
 	s.mutatorsMap[toAdd.ID()] = toAdd
 
 	// This logic can no longer return an error, so we can safely say that ingestion was successful
-	ingestionStatus = MutatorStatusActive
+	s.ingestionStatusMap[m.ID()] = MutatorStatusActive
 
 	i := sort.Search(len(s.orderedMutators), func(i int) bool {
 		return greaterOrEqual(s.orderedMutators[i].ID(), toAdd.ID())
@@ -239,6 +241,7 @@ func (s *System) Remove(id types.ID) error {
 	})
 
 	delete(s.mutatorsMap, id)
+	delete(s.ingestionStatusMap, id)
 
 	found := equal(s.orderedMutators[i].ID(), id)
 
@@ -247,9 +250,11 @@ func (s *System) Remove(id types.ID) error {
 	if !found {
 		return fmt.Errorf("Failed to find mutator with ID %v on sorted list", id)
 	}
+
 	copy(s.orderedMutators[i:], s.orderedMutators[i+1:])
 	s.orderedMutators[len(s.orderedMutators)-1] = nil
 	s.orderedMutators = s.orderedMutators[:len(s.orderedMutators)-1]
+
 	return nil
 }
 
@@ -260,6 +265,20 @@ func (s *System) Get(id types.ID) types.Mutator {
 		return nil
 	}
 	return mutator.DeepCopy()
+}
+
+func (s *System) reportMutatorsStatus() {
+	for status, count := range s.tallyStatus() {
+		s.reporter.reportMutatorsStatus(status, count)
+	}
+}
+
+func (s *System) tallyStatus() map[MutatorIngestionStatus]int {
+	statusTally := make(map[MutatorIngestionStatus]int)
+	for _, status := range s.ingestionStatusMap {
+		statusTally[status]++
+	}
+	return statusTally
 }
 
 func greaterOrEqual(id1, id2 types.ID) bool {

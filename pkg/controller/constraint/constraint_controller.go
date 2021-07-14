@@ -459,15 +459,11 @@ func (c *ConstraintsCache) reportTotalConstraints(reporter StatsReporter) {
 
 	for _, enforcementAction := range util.KnownEnforcementActions {
 		for _, status := range metrics.AllStatuses {
-			if err := reporter.reportConstraints(
-				tags{
-					enforcementAction: enforcementAction,
-					status:            status,
-				},
-				int64(totals[tags{
-					enforcementAction: enforcementAction,
-					status:            status,
-				}])); err != nil {
+			t := tags{
+				enforcementAction: enforcementAction,
+				status:            status,
+			}
+			if err := reporter.reportConstraints(t, int64(totals[t])); err != nil {
 				log.Error(err, "failed to report total constraints")
 			}
 		}

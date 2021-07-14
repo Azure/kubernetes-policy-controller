@@ -2,6 +2,7 @@ package mutation
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -518,5 +519,56 @@ func TestSystem_EarliestConflictingMutatorWins(t *testing.T) {
 	}
 	if s.Get(id("bar")).(*fakeMutator).MutationCount != 2 {
 		t.Errorf("got bar.MutationCount == %d, want 2", bar.MutationCount)
+	}
+}
+
+func TestIngestionStatusMap(t *testing.T) {
+	// A valid mutator
+	foo := &fakeMutator{
+		MID:    id("foo"),
+		MPath:  mustParse("spec.containers[name: foo].image"),
+		GVKs:   []schema.GroupVersionKind{{Version: "v1", Kind: "Pod"}},
+		Labels: map[string]string{"active": "true"},
+	}
+	// A mutator that will conflict and be in an error state
+	fooConflict := &fakeMutator{
+		MID:    id("foo-conflict"),
+		MPath:  mustParse("spec.containers.image"),
+		GVKs:   []schema.GroupVersionKind{{Version: "v1", Kind: "Pod"}},
+		Labels: map[string]string{"active": "true"},
+	}
+	// A non-conflicting mutator that will be added successfully
+	bar := &fakeMutator{
+		MID:    id("bar"),
+		MPath:  mustParse("spec.images[name: nginx].tag"),
+		GVKs:   []schema.GroupVersionKind{{Version: "v1", Kind: "Pod"}},
+		Labels: map[string]string{"active": "true"},
+	}
+
+	s, err := NewSystem()
+	if err != nil {
+		t.Error("Failed to create mutation system")
+	}
+	err = s.Upsert(foo)
+	if err != nil {
+		t.Fatalf("got Upsert() error = %v, want <nil>", err)
+	}
+	err = s.Upsert(fooConflict)
+	if err == nil {
+		t.Fatalf("got Upsert() error = %v, want error", err)
+	}
+	err = s.Upsert(bar)
+	if err != nil {
+		t.Fatalf("got Upsert() error = %v, want <nil>", err)
+	}
+
+	expectedTally := map[MutatorIngestionStatus]int{
+		MutatorStatusActive: 2,
+		MutatorStatusError:  1,
+	}
+	actualTally := s.tallyStatus()
+
+	if !reflect.DeepEqual(expectedTally, actualTally) {
+		t.Errorf("Actual tally of Mutators did not match expected.  Diff: %v", cmp.Diff(actualTally, expectedTally))
 	}
 }

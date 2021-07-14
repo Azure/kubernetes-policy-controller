@@ -565,12 +565,27 @@ func TestIngestionStatusMap(t *testing.T) {
 		t.Fatalf("got Upsert() error = %v, want <nil>", err)
 	}
 
+	// Verify that 2 mutators are active and one is in an error state
 	expectedTally := map[MutatorIngestionStatus]int{
 		MutatorStatusActive: 2,
 		MutatorStatusError:  1,
 	}
 	actualTally := s.tallyStatus()
+	if !reflect.DeepEqual(expectedTally, actualTally) {
+		t.Errorf("Actual tally of Mutators did not match expected.  Diff: %v", cmp.Diff(actualTally, expectedTally))
+	}
 
+	// Remove the erroring mutator
+	err = s.Remove(fooConflict.ID())
+	if err != nil {
+		t.Fatalf("got Remove() error = %v, want <nil>", err)
+	}
+
+	// Verify the lack of error state
+	expectedTally = map[MutatorIngestionStatus]int{
+		MutatorStatusActive: 2,
+	}
+	actualTally = s.tallyStatus()
 	if !reflect.DeepEqual(expectedTally, actualTally) {
 		t.Errorf("Actual tally of Mutators did not match expected.  Diff: %v", cmp.Diff(actualTally, expectedTally))
 	}

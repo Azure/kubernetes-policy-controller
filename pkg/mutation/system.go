@@ -228,6 +228,9 @@ func (s *System) Remove(id types.ID) error {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 
+	// Delete from the ingestionStatusMap, which can have mutators that never made it into the mutatorsMap
+	delete(s.ingestionStatusMap, id)
+
 	if _, ok := s.mutatorsMap[id]; !ok {
 		return nil
 	}
@@ -243,7 +246,6 @@ func (s *System) Remove(id types.ID) error {
 	})
 
 	delete(s.mutatorsMap, id)
-	delete(s.ingestionStatusMap, id)
 
 	found := equal(s.orderedMutators[i].ID(), id)
 
@@ -270,8 +272,14 @@ func (s *System) Get(id types.ID) types.Mutator {
 }
 
 func (s *System) reportMutatorsStatus() {
+	if s.reporter == nil {
+		return
+	}
+
 	for status, count := range s.tallyStatus() {
-		s.reporter.reportMutatorsStatus(status, count)
+		if err := s.reporter.reportMutatorsStatus(status, count); err != nil {
+			log.Error(err, "failed to report mutator status")
+		}
 	}
 }
 

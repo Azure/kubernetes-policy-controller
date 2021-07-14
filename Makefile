@@ -11,10 +11,9 @@ VERSION := v3.6.0-beta.2
 KIND_VERSION ?= 0.11.0
 # note: k8s version pinned since KIND image availability lags k8s releases
 KUBERNETES_VERSION ?= 1.21.1
-KUSTOMIZE_VERSION ?= 3.8.8
+KUSTOMIZE_VERSION ?= 3.8.9
 BATS_VERSION ?= 1.2.1
 BATS_TESTS_FILE ?= test/bats/test.bats
-KUBECTL_KUSTOMIZE_VERSION ?= 1.20.1-${KUSTOMIZE_VERSION}
 HELM_VERSION ?= 3.4.2
 HELM_ARGS ?=
 GATEKEEPER_NAMESPACE ?= gatekeeper-system
@@ -176,16 +175,26 @@ run: generate manifests
 
 # Install CRDs into a cluster
 install: manifests
-	kustomize build config/crd | kubectl apply -f -
+	docker run -v $(shell pwd)/config:/config -v $(shell pwd)/vendor:/vendor \
+	  k8s.gcr.io/kustomize/kustomize:v${KUSTOMIZE_VERSION} build \
+	  /config/crd | kubectl apply -f -
 
 deploy-mutation: patch-image
 	@grep -q -v 'enable-mutation' ./config/overlays/dev_mutation/manager_image_patch.yaml && sed -i '/- --operation=webhook/a \ \ \ \ \ \ \ \ - --enable-mutation=true' ./config/overlays/dev_mutation/manager_image_patch.yaml && sed -i '/- --operation=status/a \ \ \ \ \ \ \ \ - --operation=mutation-status' ./config/overlays/dev_mutation/manager_image_patch.yaml
-	kustomize build --load_restrictor LoadRestrictionsNone config/overlays/dev_mutation | kubectl apply -f -
-	kustomize build --load_restrictor LoadRestrictionsNone config/overlays/mutation | kubectl apply -f -
+	docker run -v $(shell pwd)/config:/config -v $(shell pwd)/vendor:/vendor \
+	  k8s.gcr.io/kustomize/kustomize:v${KUSTOMIZE_VERSION} build \
+	  --load_restrictor LoadRestrictionsNone \
+	  /config/overlays/dev_mutation | kubectl apply -f -
+	docker run -v $(shell pwd)/config:/config -v $(shell pwd)/vendor:/vendor \
+	  k8s.gcr.io/kustomize/kustomize:v${KUSTOMIZE_VERSION} build \
+	  --load_restrictor LoadRestrictionsNone \
+	  /config/overlays/mutation | kubectl apply -f -
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: patch-image manifests
-	kustomize build config/overlays/dev | kubectl apply -f -
+	docker run -v $(shell pwd)/config:/config -v $(shell pwd)/vendor:/vendor \
+	  k8s.gcr.io/kustomize/kustomize:v${KUSTOMIZE_VERSION} build \
+	  /config/overlays/dev | kubectl apply -f -
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: __controller-gen
@@ -203,8 +212,12 @@ manifests: __controller-gen
 	rm -rf manifest_staging
 	mkdir -p manifest_staging/deploy
 	mkdir -p manifest_staging/charts/gatekeeper
-	docker run --rm -v $(shell pwd):/gatekeeper --entrypoint /usr/local/bin/kustomize line/kubectl-kustomize:${KUBECTL_KUSTOMIZE_VERSION} build /gatekeeper/config/default -o /gatekeeper/manifest_staging/deploy/gatekeeper.yaml
-	docker run --rm -v $(shell pwd):/gatekeeper --entrypoint /usr/local/bin/kustomize line/kubectl-kustomize:${KUBECTL_KUSTOMIZE_VERSION} build --load_restrictor LoadRestrictionsNone /gatekeeper/cmd/build/helmify | go run cmd/build/helmify/*.go
+	docker run --rm -v $(shell pwd):/gatekeeper \
+	  k8s.gcr.io/kustomize/kustomize:v${KUSTOMIZE_VERSION} build \
+	  /gatekeeper/config/default -o /gatekeeper/manifest_staging/deploy/gatekeeper.yaml
+	docker run --rm -v $(shell pwd):/gatekeeper \
+	  k8s.gcr.io/kustomize/kustomize:v${KUSTOMIZE_VERSION} build \
+	  --load_restrictor LoadRestrictionsNone /gatekeeper/cmd/build/helmify | go run cmd/build/helmify/*.go
 
 # lint runs a dockerized golangci-lint, and should give consistent results
 # across systems.
@@ -312,7 +325,9 @@ promote-staging-manifest:
 
 # Delete gatekeeper from a cluster. Note this is not a complete uninstall, just a dev convenience
 uninstall:
-	kustomize build config/overlays/dev | kubectl delete -f -
+	docker run -v $(shell pwd)/config:/config -v $(shell pwd)/vendor:/vendor \
+	  k8s.gcr.io/kustomize/kustomize:v${KUSTOMIZE_VERSION} build \
+	  /config/overlays/dev | kubectl delete -f -
 
 __controller-gen: __tooling-image
 CONTROLLER_GEN=docker run -v $(shell pwd):/gatekeeper gatekeeper-tooling controller-gen

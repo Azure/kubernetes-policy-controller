@@ -22,6 +22,8 @@ linters:
   enable:
     - deadcode
     - errcheck
+    - exportloopref
+    - forcetypeassert
     - gocritic
     - goconst
     - godot

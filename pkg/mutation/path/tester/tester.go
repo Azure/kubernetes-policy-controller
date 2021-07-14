@@ -86,10 +86,10 @@ func New(location parser.Path, tests []Test) (*Tester, error) {
 	// Read in all tests before checking for conflicts.
 	idxLowestMustNot := math.MaxInt32
 	idxHighestMust := 0
-	for _, test := range tests {
-		i := len(test.SubPath.Nodes) - 1
-		idx.tests[i] = test.Condition
-		paths[i] = &test.SubPath
+	for i, test := range tests {
+		j := len(test.SubPath.Nodes) - 1
+		idx.tests[j] = test.Condition
+		paths[j] = &tests[i].SubPath
 
 		if test.Condition == MustNotExist && i < idxLowestMustNot {
 			idxLowestMustNot = i

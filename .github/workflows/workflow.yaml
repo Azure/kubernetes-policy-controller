@@ -59,14 +59,9 @@ jobs:
           curl -L -O "https://github.com/kubernetes-sigs/kubebuilder/releases/download/v${KUBEBUILDER_VERSION}/kubebuilder_${KUBEBUILDER_VERSION}_linux_amd64.tar.gz" &&\
             tar -zxvf kubebuilder_${KUBEBUILDER_VERSION}_linux_amd64.tar.gz &&\
             sudo mv kubebuilder_${KUBEBUILDER_VERSION}_linux_amd64 /usr/local/kubebuilder
-          curl -L -O "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" &&\
-            tar -zxvf kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz &&\
-            chmod +x kustomize &&\
-            sudo mv kustomize /usr/local/bin
           make native-test
         env:
           KUBEBUILDER_VERSION: 2.3.1
-          KUSTOMIZE_VERSION: 3.7.0
 
       - name: Codecov Upload
         uses: codecov/codecov-action@v1.5.2

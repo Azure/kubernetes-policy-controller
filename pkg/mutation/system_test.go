@@ -322,7 +322,10 @@ func TestMutation(t *testing.T) {
 				t.Error(tc.tname, "Mutation not as expected", diff)
 			}
 
-			probe := c.orderedMutators[0].(*fakeMutator) // fetching a mock mutator to check the number of iterations
+			probe, ok := c.orderedMutators[0].(*fakeMutator) // fetching a mock mutator to check the number of iterations
+			if !ok {
+				t.Fatalf("mutator type %T, want %T", c.orderedMutators[0], &fakeMutator{})
+			}
 			if probe.MutationCount != tc.expectedIterations {
 				t.Error(tc.tname, "Expected %d  mutation iterations, got", tc.expectedIterations, tc.mutations[0].MutationCount)
 			}

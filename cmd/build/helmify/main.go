@@ -21,6 +21,8 @@ var kindRegex = regexp.MustCompile(`(?m)^kind:[\s]+([\S]+)[\s]*$`)
 // use exactly two spaces to be sure we are capturing metadata.name.
 var nameRegex = regexp.MustCompile(`(?m)^  name:[\s]+([\S]+)[\s]*$`)
 
+const DeploymentKind = "Deployment"
+
 func extractKind(s string) (string, error) {
 	matches := kindRegex.FindStringSubmatch(s)
 	if len(matches) != 2 {
@@ -99,7 +101,19 @@ func (ks *kindSet) Write() error {
 				obj = "{{- if .Values.experimentalEnableMutation }}\n" + obj + "{{- end }}\n"
 			}
 
-			if kind == "Deployment" {
+			if name == "gatekeeper-critical-pods" && kind == "ResourceQuota" {
+				obj = "{{- if .Values.resourceQuota }}\n" + obj + "{{- end }}\n"
+			}
+
+			if name == "gatekeeper-controller-manager" && kind == DeploymentKind {
+				obj = strings.Replace(obj, "      priorityClassName: system-cluster-critical", "      {{- if .Values.controllerManager.priorityClassName }} \n      priorityClassName:  {{ .Values.controllerManager.priorityClassName }}\n      {{- end }}", 1)
+			}
+
+			if name == "gatekeeper-audit" && kind == DeploymentKind {
+				obj = strings.Replace(obj, "      priorityClassName: system-cluster-critical", "      {{- if .Values.audit.priorityClassName }} \n      priorityClassName:  {{ .Values.audit.priorityClassName }}\n      {{- end }}", 1)
+			}
+
+			if kind == DeploymentKind {
 				obj = strings.Replace(obj, "      labels:", "      labels:\n{{- include \"gatekeeper.podLabels\" . }}", 1)
 			}
 

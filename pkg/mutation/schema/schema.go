@@ -87,7 +87,12 @@ func (db *DB) upsert(mutator MutatorWithSchema) error {
 
 	path := mutator.Path()
 	bindings := mutator.SchemaBindings()
-	db.cachedMutators[id] = mutator.DeepCopy().(MutatorWithSchema)
+	var ok bool
+	mutatorCopy := mutator.DeepCopy()
+	db.cachedMutators[id], ok = mutatorCopy.(MutatorWithSchema)
+	if !ok {
+		panic(fmt.Sprintf("got mutator.DeepCopy() type %T, want %T", mutatorCopy, MutatorWithSchema(nil)))
+	}
 
 	var conflicts idSet
 	for _, gvk := range bindings {

@@ -86,10 +86,18 @@ func TestObjectsAndLists(t *testing.T) {
 			t.Error("Unexpected error", err)
 		}
 		for _, container := range containers {
-			containerAsMap := container.(map[string]interface{})
+			containerAsMap, ok := container.(map[string]interface{})
+			if !ok {
+				t.Fatalf("got container type %T, want %T", container, map[string]interface{}{})
+			}
+
 			if containerAsMap["name"] == "testname2" {
 				for _, port := range containerAsMap["ports"].([]interface{}) {
-					portAsMap := port.(map[string]interface{})
+					portAsMap, ok := port.(map[string]interface{})
+					if !ok {
+						t.Fatalf("got port type %T, want %T", container, map[string]interface{}{})
+					}
+
 					if portAsMap["name"] == "portName2B" {
 						if portAsMap["hostIP"] != TestValue {
 							t.Errorf("Failed to update pod")
@@ -199,7 +207,11 @@ func TestGlobbedList(t *testing.T) {
 			t.Error("Unexpected error", err)
 		}
 		for _, container := range containers {
-			containerAsMap := container.(map[string]interface{})
+			containerAsMap, ok := container.(map[string]interface{})
+			if !ok {
+				t.Fatalf("got container type %T, want %T", container, map[string]interface{}{})
+			}
+
 			ports := containerAsMap["ports"]
 			for _, port := range ports.([]interface{}) {
 				if value, ok := port.(map[string]interface{})["protocol"]; !ok || value != TestValue {
@@ -245,14 +257,23 @@ func TestNonExistingPathEntry(t *testing.T) {
 
 func TestNonExistingListPathEntry(t *testing.T) {
 	testFunc := func(u *unstructured.Unstructured) {
-		element, found, err := unstructured.NestedFieldNoCopy(u.Object, "spec", "element")
+		element, found, err := unstructured.NestedSlice(u.Object, "spec", "element")
 		if err != nil {
 			t.Error("Unexpected error", err)
 		}
 		if !found {
 			t.Fatal("resource not found")
 		}
-		element2 := element.([]interface{})[0].(map[string]interface{})["element2"].(map[string]interface{})
+
+		element0, ok := element[0].(map[string]interface{})
+		if !ok {
+			t.Fatalf("got spec.element[0] type %T, want %T", element[0], map[string]interface{}{})
+		}
+
+		element2, ok := element0["element2"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("got spec.element[0].element2 type %T, want %T", element0["element2"], map[string]interface{}{})
+		}
 		if element2["added"] != TestValue {
 			t.Errorf("Failed to update pod")
 		}

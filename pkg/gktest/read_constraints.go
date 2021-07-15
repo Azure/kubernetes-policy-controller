@@ -20,6 +20,17 @@ func init() {
 	_ = apis.AddToScheme(scheme)
 }
 
+func readUnstructured(bytes []byte) (*unstructured.Unstructured, error) {
+	u := &unstructured.Unstructured{
+		Object: make(map[string]interface{}),
+	}
+	err := yaml.Unmarshal(bytes, u.Object)
+	if err != nil {
+		return nil, err
+	}
+	return u, nil
+}
+
 // readTemplate reads the contents of the path and returns the
 // ConstraintTemplate it defines. Returns an error if the file does not define
 // a ConstraintTemplate.
@@ -29,10 +40,7 @@ func readTemplate(f fs.FS, path string) (*templates.ConstraintTemplate, error) {
 		return nil, fmt.Errorf("reading ConstraintTemplate from %q: %w", path, err)
 	}
 
-	u := unstructured.Unstructured{
-		Object: make(map[string]interface{}),
-	}
-	err = yaml.Unmarshal(bytes, u.Object)
+	u, err := readUnstructured(bytes)
 	if err != nil {
 		return nil, fmt.Errorf("%w: parsing ConstraintTemplate YAML from %q: %v", ErrAddingTemplate, path, err)
 	}
@@ -78,19 +86,15 @@ func readConstraint(f fs.FS, path string) (*unstructured.Unstructured, error) {
 		return nil, fmt.Errorf("reading Constraint from %q: %w", path, err)
 	}
 
-	c := &unstructured.Unstructured{
-		Object: make(map[string]interface{}),
-	}
-
-	err = yaml.Unmarshal(bytes, c.Object)
+	u, err := readUnstructured(bytes)
 	if err != nil {
 		return nil, fmt.Errorf("%w: parsing Constraint from %q: %v", ErrAddingConstraint, path, err)
 	}
 
-	gvk := c.GroupVersionKind()
+	gvk := u.GroupVersionKind()
 	if gvk.Group != "constraints.gatekeeper.sh" {
 		return nil, ErrNotAConstraint
 	}
 
-	return c, nil
+	return u, nil
 }

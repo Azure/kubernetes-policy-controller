@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 // Runner defines logic independent of how tests are run and the results are
@@ -74,7 +76,60 @@ func (r *Runner) runTest(ctx context.Context, filter Filter, t Test) TestResult 
 	return TestResult{CaseResults: results}
 }
 
+func readCase(f fs.FS, path string) (*unstructured.Unstructured, error) {
+	bytes, err := fs.ReadFile(f, path)
+	if err != nil {
+		return nil, err
+	}
+
+	return readUnstructured(bytes)
+}
+
+func runAllow(ctx context.Context, client Client, f fs.FS, path string) CaseResult {
+	u, err := readCase(f, path)
+	if err != nil {
+		return CaseResult{Error: err}
+	}
+
+	result, err := client.Review(ctx, u)
+	if err != nil {
+		return CaseResult{Error: err}
+	}
+
+	results := result.Results()
+	if len(results) > 0 {
+		return CaseResult{Error: fmt.Errorf("%w: %v", ErrUnexpectedDeny, results)}
+	}
+	return CaseResult{}
+}
+
+func runDeny(ctx context.Context, client Client, f fs.FS, path string, assertions []Assertion) CaseResult {
+	u, err := readCase(f, path)
+	if err != nil {
+		return CaseResult{Error: err}
+	}
+
+	result, err := client.Review(ctx, u)
+	if err != nil {
+		return CaseResult{Error: err}
+	}
+
+	results := result.Results()
+	if len(results) == 0 {
+		return CaseResult{Error: ErrUnexpectedAllow}
+	}
+
+	return CaseResult{}
+}
+
 // RunCase executes a Case and returns the result of the run.
 func (r *Runner) runCase(ctx context.Context, client Client, c Case) CaseResult {
-	return CaseResult{}
+	switch {
+	case c.Allow != "" && c.Deny == "":
+		return runAllow(ctx, client, r.FS, c.Allow)
+	case c.Allow == "" && c.Deny != "":
+		return runDeny(ctx, client, r.FS, c.Deny, c.Assertions)
+	default:
+		return CaseResult{Error: fmt.Errorf("%w: must define exactly one of allow and deny", ErrInvalidCase)}
+	}
 }

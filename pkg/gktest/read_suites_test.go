@@ -246,6 +246,60 @@ apiVersion: test.gatekeeper.sh/v1alpha1
 			want:    nil,
 			wantErr: ErrNotADirectory,
 		},
+		{
+			name:      "suite with test and cases",
+			target:    "test.yaml",
+			recursive: false,
+			fileSystem: fstest.MapFS{
+				"test.yaml": &fstest.MapFile{
+					Data: []byte(`
+kind: Suite
+apiVersion: test.gatekeeper.sh/v1alpha1
+tests:
+- template: template.yaml
+  constraint: constraint.yaml
+  cases:
+  - allow: allow.yaml
+  - deny: deny.yaml
+`),
+				},
+			},
+			want: []Suite{{
+				Tests: []Test{{
+					Template:   "template.yaml",
+					Constraint: "constraint.yaml",
+					Cases: []Case{{
+						Allow: "allow.yaml",
+					}, {
+						Deny: "deny.yaml",
+					}},
+				}},
+			}},
+			wantErr: nil,
+		},
+		{
+			name:      "suite with tests and no cases",
+			target:    "test.yaml",
+			recursive: false,
+			fileSystem: fstest.MapFS{
+				"test.yaml": &fstest.MapFile{
+					Data: []byte(`
+kind: Suite
+apiVersion: test.gatekeeper.sh/v1alpha1
+tests:
+- template: template.yaml
+  constraint: constraint.yaml
+`),
+				},
+			},
+			want: []Suite{{
+				Tests: []Test{{
+					Template:   "template.yaml",
+					Constraint: "constraint.yaml",
+				}},
+			}},
+			wantErr: nil,
+		},
 	}
 
 	for _, tc := range testCases {

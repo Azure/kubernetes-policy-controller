@@ -147,11 +147,8 @@ func Test_AssignMetadata(t *testing.T) {
 	// Wire up the rest.
 	mgr, wm := setupManager(t)
 	opaClient := setupOpa(t)
-	mutationCache, err := mutation.NewSystem()
-	if err != nil {
-		t.Error("Failed to create mutation system")
-	}
-	if err = setupController(mgr, wm, opaClient, mutationCache); err != nil {
+	mutationCache := mutation.NewSystem()
+	if err := setupController(mgr, wm, opaClient, mutationCache); err != nil {
 		t.Fatalf("setupControllers: %v", err)
 	}
 
@@ -197,11 +194,8 @@ func Test_Assign(t *testing.T) {
 	// Wire up the rest.
 	mgr, wm := setupManager(t)
 	opaClient := setupOpa(t)
-	mutationCache, err := mutation.NewSystem()
-	if err != nil {
-		t.Error("Failed to create mutation system")
-	}
-	if err = setupController(mgr, wm, opaClient, mutationCache); err != nil {
+	mutationCache := mutation.NewSystem()
+	if err := setupController(mgr, wm, opaClient, mutationCache); err != nil {
 		t.Fatalf("setupControllers: %v", err)
 	}
 

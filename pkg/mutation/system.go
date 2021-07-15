@@ -20,28 +20,21 @@ import (
 // System keeps the list of mutators and
 // provides an interface to apply mutations.
 type System struct {
-	schemaDB           schema.DB
-	orderedMutators    []types.Mutator
-	mutatorsMap        map[types.ID]types.Mutator
-	mux                sync.RWMutex
-	reporter           *reporter
+	schemaDB        schema.DB
+	orderedMutators []types.Mutator
+	mutatorsMap     map[types.ID]types.Mutator
+	mux             sync.RWMutex
 	ingestionStatusMap map[types.ID]MutatorIngestionStatus
 }
 
 // NewSystem initializes an empty mutation system.
-func NewSystem() (*System, error) {
-	rep, err := newStatsReporter()
-	if err != nil {
-		return nil, err
-	}
-
+func NewSystem() *System {
 	return &System{
-		schemaDB:           *schema.New(),
-		orderedMutators:    make([]types.Mutator, 0),
-		mutatorsMap:        make(map[types.ID]types.Mutator),
-		reporter:           rep,
+		schemaDB:        *schema.New(),
+		orderedMutators: make([]types.Mutator, 0),
+		mutatorsMap:     make(map[types.ID]types.Mutator),
 		ingestionStatusMap: make(map[types.ID]MutatorIngestionStatus),
-	}, nil
+	}
 }
 
 // Upsert updates or insert the given object, and returns

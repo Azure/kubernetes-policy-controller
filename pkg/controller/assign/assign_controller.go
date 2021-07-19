@@ -154,7 +154,7 @@ type Reconciler struct {
 
 // Reconcile reads that state of the cluster for a Assign object and makes changes based on the state read
 // and what is in the Assign.Spec.
-// TODO (https://github.com/open-policy-agent/gatekeeper/issues/1449): DRY this and assignmetadata_controller.go
+// TODO (https://github.com/open-policy-agent/gatekeeper/issues/1449): DRY this and assignmetadata_controller.go .
 func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	log.Info("Reconcile", "request", request)
 	timeStart := time.Now()

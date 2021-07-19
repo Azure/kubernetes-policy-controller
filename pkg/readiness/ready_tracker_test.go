@@ -200,6 +200,9 @@ func Test_Assign(t *testing.T) {
 	mgr, wm := setupManager(t)
 	opaClient := setupOpa(t)
 	mutationCache, err := mutation.NewSystem()
+	if err != nil {
+		t.Error(errors.Wrapf(err, "Failed to initialize mutation system"))
+	}
 	if err := setupController(mgr, wm, opaClient, mutationCache); err != nil {
 		t.Fatalf("setupControllers: %v", err)
 	}

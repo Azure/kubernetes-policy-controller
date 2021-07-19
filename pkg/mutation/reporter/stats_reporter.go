@@ -11,10 +11,10 @@ import (
 )
 
 const (
-	MutatorIngestionCountMetricName    = "mutator_ingestion_count"
-	MutatorIngestionDurationMetricName = "mutator_ingestion_duration_seconds"
-	MutatorsMetricName                 = "mutators"
-	MutationSystemIterationsMetricName = "mutation_system_iterations"
+	mutatorIngestionCountMetricName    = "mutator_ingestion_count"
+	mutatorIngestionDurationMetricName = "mutator_ingestion_duration_seconds"
+	mutatorsMetricName                 = "mutators"
+	mutationSystemIterationsMetricName = "mutation_system_iterations"
 )
 
 // MutatorIngestionStatus defines the outcomes of an attempt to add a Mutator to the mutation System.
@@ -40,17 +40,17 @@ var (
 	SystemConvergenceFalse SystemConvergenceStatus = "false"
 
 	responseTimeInSecM = stats.Float64(
-		MutatorIngestionDurationMetricName,
+		mutatorIngestionDurationMetricName,
 		"The distribution of Mutator ingestion durations",
 		stats.UnitSeconds)
 
 	mutatorsM = stats.Int64(
-		MutatorsMetricName,
+		mutatorsMetricName,
 		"The current number of Mutator objects",
 		stats.UnitDimensionless)
 
 	systemIterationsM = stats.Int64(
-		MutationSystemIterationsMetricName,
+		mutationSystemIterationsMetricName,
 		"The distribution of Mutator ingestion durations",
 		stats.UnitDimensionless)
 )
@@ -65,6 +65,9 @@ type Reporter struct {
 	ctx context.Context
 }
 
+// ReportMutatorIngestionRequest reports both the action of a mutator ingestion and the time
+// required for this request to complete.  The outcome of the ingestion attempt is recorded via the
+// status argument.
 func (r *Reporter) ReportMutatorIngestionRequest(ms MutatorIngestionStatus, d time.Duration) error {
 	ctx, err := tag.New(
 		r.ctx,
@@ -77,6 +80,8 @@ func (r *Reporter) ReportMutatorIngestionRequest(ms MutatorIngestionStatus, d ti
 	return r.report(ctx, responseTimeInSecM.M(d.Seconds()))
 }
 
+// ReportMutatorsStatus reports the number of mutators of a specific status that are present in the
+// mutation System.
 func (r *Reporter) ReportMutatorsStatus(ms MutatorIngestionStatus, n int) error {
 	ctx, err := tag.New(
 		r.ctx,
@@ -89,6 +94,8 @@ func (r *Reporter) ReportMutatorsStatus(ms MutatorIngestionStatus, n int) error 
 	return r.report(ctx, mutatorsM.M(int64(n)))
 }
 
+// ReportIterationConvergence reports the success or failure of the mutation system to converge.
+// It also records the number of system iterations that were required to reach this end.
 func (r *Reporter) ReportIterationConvergence(scs SystemConvergenceStatus, iterations int) error {
 	ctx, err := tag.New(
 		r.ctx,
@@ -105,7 +112,7 @@ func (r *Reporter) report(ctx context.Context, m stats.Measurement) error {
 	return metrics.Record(ctx, m)
 }
 
-// NewStatsReporter creaters a reporter for mutation metrics
+// NewStatsReporter creaters a reporter for mutation metrics.
 func NewStatsReporter() (*Reporter, error) {
 	ctx, err := tag.New(
 		context.Background(),
@@ -120,14 +127,14 @@ func NewStatsReporter() (*Reporter, error) {
 func register() error {
 	views := []*view.View{
 		{
-			Name:        MutatorIngestionCountMetricName,
+			Name:        mutatorIngestionCountMetricName,
 			Description: "Total number of Mutator ingestion actions",
 			Measure:     responseTimeInSecM,
 			Aggregation: view.Count(),
 			TagKeys:     []tag.Key{mutatorStatusKey},
 		},
 		{
-			Name:        MutatorIngestionDurationMetricName,
+			Name:        mutatorIngestionDurationMetricName,
 			Description: responseTimeInSecM.Description(),
 			Measure:     responseTimeInSecM,
 			// JULIAN - We'll need to tune this.  I'm not sure if these histogram sections are valid.
@@ -135,14 +142,14 @@ func register() error {
 			TagKeys:     []tag.Key{mutatorStatusKey},
 		},
 		{
-			Name:        MutatorsMetricName,
+			Name:        mutatorsMetricName,
 			Description: "The current number of Mutator objects",
 			Measure:     mutatorsM,
 			Aggregation: view.LastValue(),
 			TagKeys:     []tag.Key{mutatorStatusKey},
 		},
 		{
-			Name:        MutationSystemIterationsMetricName,
+			Name:        mutationSystemIterationsMetricName,
 			Description: systemIterationsM.Description(),
 			Measure:     systemIterationsM,
 			// JULIAN - We'll need to tune this.  I'm not sure if these histogram sections are valid.

@@ -87,7 +87,7 @@ func (a *Adder) InjectMutationCache(mutationCache *mutation.System) {
 	a.MutationSystem = mutationCache
 }
 
-// newReconciler returns a new reconcile.Reconciler
+// newReconciler returns a new reconcile.Reconciler.
 func newReconciler(mgr manager.Manager, mutationCache *mutation.System, tracker *readiness.Tracker, getPod func() (*corev1.Pod, error)) *Reconciler {
 	rep, err := mutationReporter.NewStatsReporter()
 	if err != nil {
@@ -154,7 +154,7 @@ type Reconciler struct {
 
 // Reconcile reads that state of the cluster for a AssignMetadata object and makes changes based on the state read
 // and what is in the AssignMetadata.Spec.
-// TODO (https://github.com/open-policy-agent/gatekeeper/issues/1449): DRY this and assign_controller.go
+// TODO (https://github.com/open-policy-agent/gatekeeper/issues/1449): DRY this and assign_controller.go.
 func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	log.Info("Reconcile", "request", request)
 	timeStart := time.Now()

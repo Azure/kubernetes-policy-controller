@@ -140,7 +140,6 @@ func (m *AssignMutator) DeepCopy() types.Mutator {
 	}
 	copy(res.path.Nodes, m.path.Nodes)
 	copy(res.bindings, m.bindings)
-	fmt.Println(len(res.bindings))
 	res.tester = m.tester.DeepCopy()
 	res.valueTest = m.valueTest.DeepCopy()
 	return res

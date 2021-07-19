@@ -42,6 +42,7 @@ var (
 // AssignMeta instance.
 type AssignMetadataMutator struct {
 	id             types.ID
+	tester         *tester.Tester
 	assignMetadata *mutationsv1alpha1.AssignMetadata
 	path           parser.Path
 }
@@ -59,13 +60,7 @@ func (m *AssignMetadataMutator) Matches(obj client.Object, ns *corev1.Namespace)
 }
 
 func (m *AssignMetadataMutator) Mutate(obj *unstructured.Unstructured) (bool, error) {
-	t, err := tester.New(m.Path(), []tester.Test{
-		{SubPath: m.Path(), Condition: tester.MustNotExist},
-	})
-	if err != nil {
-		return false, err
-	}
-	return core.Mutate(m, t, nil, obj)
+	return core.Mutate(m, m.tester, nil, obj)
 }
 
 func (m *AssignMetadataMutator) ID() types.ID {
@@ -96,6 +91,7 @@ func (m *AssignMetadataMutator) HasDiff(mutator types.Mutator) bool {
 func (m *AssignMetadataMutator) DeepCopy() types.Mutator {
 	res := &AssignMetadataMutator{
 		id:             m.id,
+		tester:         m.tester.DeepCopy(),
 		assignMetadata: m.assignMetadata.DeepCopy(),
 		path:           m.path.DeepCopy(),
 	}
@@ -142,8 +138,16 @@ func MutatorForAssignMetadata(assignMeta *mutationsv1alpha1.AssignMetadata) (*As
 		return nil, errors.New("spec.parameters.assign.value field must be a string for AssignMetadata " + assignMeta.GetName())
 	}
 
+	t, err := tester.New(path, []tester.Test{
+		{SubPath: path, Condition: tester.MustNotExist},
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	return &AssignMetadataMutator{
 		id:             types.MakeID(assignMeta),
+		tester:         t,
 		assignMetadata: assignMeta.DeepCopy(),
 		path:           path,
 	}, nil

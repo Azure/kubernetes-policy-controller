@@ -274,7 +274,7 @@ jobs:
           prerelease: false
 
       - name: Publish Helm chart
-        uses: stefanprodan/helm-gh-pages@v1.2.0
+        uses: stefanprodan/helm-gh-pages@v1.4.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           charts_dir: charts

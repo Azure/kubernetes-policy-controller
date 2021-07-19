@@ -36,6 +36,7 @@ import (
 	"github.com/open-policy-agent/gatekeeper/pkg/target"
 	"github.com/open-policy-agent/gatekeeper/pkg/watch"
 	"github.com/open-policy-agent/gatekeeper/third_party/sigs.k8s.io/controller-runtime/pkg/dynamiccache"
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -147,7 +148,11 @@ func Test_AssignMetadata(t *testing.T) {
 	// Wire up the rest.
 	mgr, wm := setupManager(t)
 	opaClient := setupOpa(t)
-	mutationCache := mutation.NewSystem()
+	mutationCache, err := mutation.NewSystem()
+	if err != nil {
+		t.Error(errors.Wrapf(err, "Failed to instantiate mutation system"))
+	}
+
 	if err := setupController(mgr, wm, opaClient, mutationCache); err != nil {
 		t.Fatalf("setupControllers: %v", err)
 	}
@@ -194,7 +199,7 @@ func Test_Assign(t *testing.T) {
 	// Wire up the rest.
 	mgr, wm := setupManager(t)
 	opaClient := setupOpa(t)
-	mutationCache := mutation.NewSystem()
+	mutationCache, err := mutation.NewSystem()
 	if err := setupController(mgr, wm, opaClient, mutationCache); err != nil {
 		t.Fatalf("setupControllers: %v", err)
 	}

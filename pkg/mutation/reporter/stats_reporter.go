@@ -61,11 +61,11 @@ func init() {
 	}
 }
 
-type reporter struct {
+type Reporter struct {
 	ctx context.Context
 }
 
-func (r *reporter) ReportMutatorIngestionRequest(ms MutatorIngestionStatus, d time.Duration) error {
+func (r *Reporter) ReportMutatorIngestionRequest(ms MutatorIngestionStatus, d time.Duration) error {
 	ctx, err := tag.New(
 		r.ctx,
 		tag.Insert(mutatorStatusKey, string(ms)),
@@ -77,7 +77,7 @@ func (r *reporter) ReportMutatorIngestionRequest(ms MutatorIngestionStatus, d ti
 	return r.report(ctx, responseTimeInSecM.M(d.Seconds()))
 }
 
-func (r *reporter) ReportMutatorsStatus(ms MutatorIngestionStatus, n int) error {
+func (r *Reporter) ReportMutatorsStatus(ms MutatorIngestionStatus, n int) error {
 	ctx, err := tag.New(
 		r.ctx,
 		tag.Insert(mutatorStatusKey, string(ms)),
@@ -89,7 +89,7 @@ func (r *reporter) ReportMutatorsStatus(ms MutatorIngestionStatus, n int) error 
 	return r.report(ctx, mutatorsM.M(int64(n)))
 }
 
-func (r *reporter) ReportIterationConvergence(scs SystemConvergenceStatus, iterations int) error {
+func (r *Reporter) ReportIterationConvergence(scs SystemConvergenceStatus, iterations int) error {
 	ctx, err := tag.New(
 		r.ctx,
 		tag.Insert(systemConvergenceKey, string(scs)),
@@ -101,12 +101,12 @@ func (r *reporter) ReportIterationConvergence(scs SystemConvergenceStatus, itera
 	return r.report(ctx, systemIterationsM.M(int64(iterations)))
 }
 
-func (r *reporter) report(ctx context.Context, m stats.Measurement) error {
+func (r *Reporter) report(ctx context.Context, m stats.Measurement) error {
 	return metrics.Record(ctx, m)
 }
 
-// NewStatsReporter creaters a reporter for webhook metrics
-func NewStatsReporter() (*reporter, error) {
+// NewStatsReporter creaters a reporter for mutation metrics
+func NewStatsReporter() (*Reporter, error) {
 	ctx, err := tag.New(
 		context.Background(),
 	)
@@ -114,7 +114,7 @@ func NewStatsReporter() (*reporter, error) {
 		return nil, err
 	}
 
-	return &reporter{ctx: ctx}, nil
+	return &Reporter{ctx: ctx}, nil
 }
 
 func register() error {

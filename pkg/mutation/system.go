@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/open-policy-agent/gatekeeper/pkg/logging"
+	"github.com/open-policy-agent/gatekeeper/pkg/mutation/reporter"
 	"github.com/open-policy-agent/gatekeeper/pkg/mutation/schema"
 	"github.com/open-policy-agent/gatekeeper/pkg/mutation/types"
 	"github.com/pkg/errors"
@@ -19,28 +20,31 @@ import (
 // System keeps the list of mutators and
 // provides an interface to apply mutations.
 type System struct {
-	schemaDB           schema.DB
-	orderedMutators    []types.Mutator
-	mutatorsMap        map[types.ID]types.Mutator
-	mux                sync.RWMutex
-	ingestionStatusMap map[types.ID]MutatorIngestionStatus
+	schemaDB        schema.DB
+	orderedMutators []types.Mutator
+	mutatorsMap     map[types.ID]types.Mutator
+	mux             sync.RWMutex
+	reporter        *reporter.Reporter
 }
 
 // NewSystem initializes an empty mutation system.
-func NewSystem() *System {
-	return &System{
-		schemaDB:           *schema.New(),
-		orderedMutators:    make([]types.Mutator, 0),
-		mutatorsMap:        make(map[types.ID]types.Mutator),
-		ingestionStatusMap: make(map[types.ID]MutatorIngestionStatus),
+func NewSystem() (*System, error) {
+	reporter, err := reporter.NewStatsReporter()
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to initialize stats reporter for mutation system")
 	}
+
+	return &System{
+		schemaDB:        *schema.New(),
+		orderedMutators: make([]types.Mutator, 0),
+		mutatorsMap:     make(map[types.ID]types.Mutator),
+		reporter:        reporter,
+	}, nil
 }
 
 // Upsert updates or insert the given object, and returns
 // an error in case of conflicts.
 func (s *System) Upsert(m types.Mutator) error {
-	// defer s.reportMutatorsStatus()
-	// timeStart := time.Now()
 	s.mux.Lock()
 	defer s.mux.Unlock()
 
@@ -48,16 +52,6 @@ func (s *System) Upsert(m types.Mutator) error {
 	if ok && !m.HasDiff(current) {
 		return nil
 	}
-
-	s.ingestionStatusMap[m.ID()] = MutatorStatusError
-	// defer func() {
-	// 	if s.reporter != nil {
-	// 		err := s.reporter.reportMutatorIngestionRequest(s.ingestionStatusMap[m.ID()], time.Since(timeStart))
-	// 		if err != nil {
-	// 			log.Error(err, "failed to report ingestion request")
-	// 		}
-	// 	}
-	// }()
 
 	toAdd := m.DeepCopy()
 
@@ -71,9 +65,6 @@ func (s *System) Upsert(m types.Mutator) error {
 	}
 
 	s.mutatorsMap[toAdd.ID()] = toAdd
-
-	// This logic can no longer return an error, so we can safely say that ingestion was successful
-	s.ingestionStatusMap[m.ID()] = MutatorStatusActive
 
 	i := sort.Search(len(s.orderedMutators), func(i int) bool {
 		return greaterOrEqual(s.orderedMutators[i].ID(), toAdd.ID())
@@ -111,9 +102,26 @@ func (s *System) Mutate(obj *unstructured.Unstructured, ns *corev1.Namespace) (b
 		allAppliedMutations = [][]types.Mutator{}
 	}
 
-	for i := 0; i < maxIterations; i++ {
+	i := 0
+	// JULIAN - Should a
+	convergence := reporter.SystemConvergenceFalse
+	defer func() {
+		if s.reporter == nil {
+			return
+		}
+
+		err := s.reporter.ReportIterationConvergence(convergence, i)
+		if err != nil {
+			log.Error(err, "failed to report mutator ingestion request")
+		}
+	}()
+
+	for i < maxIterations {
+		i++
+
 		var appliedMutations []types.Mutator
 		old := obj.DeepCopy()
+
 		for _, m := range s.orderedMutators {
 			if s.schemaDB.HasConflicts(m.ID()) {
 				// Don't try to apply Mutators which have conflicts.
@@ -126,39 +134,58 @@ func (s *System) Mutate(obj *unstructured.Unstructured, ns *corev1.Namespace) (b
 					appliedMutations = append(appliedMutations, m)
 				}
 				if err != nil {
-					return false, errors.Wrapf(err, "mutation %s for mutator %v failed for %s %s %s %s", mutationUUID, m.ID(), obj.GroupVersionKind().Group, obj.GroupVersionKind().Kind, obj.GetNamespace(), obj.GetName())
+					return false, errors.Wrapf(err, "mutation %s for mutator %v failed for %s %s %s %s",
+						mutationUUID,
+						m.ID(),
+						obj.GroupVersionKind().Group,
+						obj.GroupVersionKind().Kind,
+						obj.GetNamespace(),
+						obj.GetName())
 				}
 			}
 		}
+
 		if cmp.Equal(old, obj) {
 			if i == 0 {
+				// JULIAN - Is this right?  I believe that a system that doesn't do any mutations is converging.
+				convergence = reporter.SystemConvergenceTrue
 				return false, nil
 			}
+
 			if cmp.Equal(original, obj) {
 				if *MutationLoggingEnabled {
 					logAppliedMutations("Oscillating mutation.", mutationUUID, original, allAppliedMutations)
 				}
-				return false, fmt.Errorf("oscillating mutation for %s %s %s %s", obj.GroupVersionKind().Group, obj.GroupVersionKind().Kind, obj.GetNamespace(), obj.GetName())
+				return false, fmt.Errorf("oscillating mutation for %s %s %s %s",
+					obj.GroupVersionKind().Group,
+					obj.GroupVersionKind().Kind,
+					obj.GetNamespace(),
+					obj.GetName())
 			}
+
 			if *MutationLoggingEnabled {
 				logAppliedMutations("Mutation applied", mutationUUID, original, allAppliedMutations)
 			}
-
 			if *MutationAnnotationsEnabled {
 				err := mutationAnnotations(obj, allAppliedMutations, mutationUUID)
 				if err != nil {
 					log.Error(err, "Error applying mutation annotations", "mutation id", mutationUUID)
 				}
 			}
+
+			convergence = reporter.SystemConvergenceTrue
 			return true, nil
 		}
+
 		if *MutationLoggingEnabled || *MutationAnnotationsEnabled {
 			allAppliedMutations = append(allAppliedMutations, appliedMutations)
 		}
 	}
+
 	if *MutationLoggingEnabled {
 		logAppliedMutations("Mutation not converging", mutationUUID, original, allAppliedMutations)
 	}
+
 	return false, fmt.Errorf("mutation %s not converging for %s %s %s %s", mutationUUID, obj.GroupVersionKind().Group, obj.GroupVersionKind().Kind, obj.GetNamespace(), obj.GetName())
 }
 
@@ -220,9 +247,6 @@ func (s *System) Remove(id types.ID) error {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 
-	// Delete from the ingestionStatusMap, which can have mutators that never made it into the mutatorsMap
-	delete(s.ingestionStatusMap, id)
-
 	if _, ok := s.mutatorsMap[id]; !ok {
 		return nil
 	}
@@ -261,29 +285,6 @@ func (s *System) Get(id types.ID) types.Mutator {
 		return nil
 	}
 	return mutator.DeepCopy()
-}
-
-// func (s *System) reportMutatorsStatus() {
-// 	if s.reporter == nil {
-// 		return
-// 	}
-//
-// 	for status, count := range s.tallyStatus() {
-// 		if err := s.reporter.reportMutatorsStatus(status, count); err != nil {
-// 			log.Error(err, "failed to report mutator status")
-// 		}
-// 	}
-// }
-
-func (s *System) tallyStatus(mc mutatorCache) map[MutatorIngestionStatus]int {
-	s.mux.Lock()
-	defer s.mux.Unlock()
-
-	statusTally := make(map[MutatorIngestionStatus]int)
-	for _, status := range mc {
-		statusTally[status]++
-	}
-	return statusTally
 }
 
 func greaterOrEqual(id1, id2 types.ID) bool {

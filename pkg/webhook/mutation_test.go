@@ -11,6 +11,7 @@ import (
 	"github.com/open-policy-agent/gatekeeper/pkg/mutation"
 	"github.com/open-policy-agent/gatekeeper/pkg/mutation/match"
 	"github.com/open-policy-agent/gatekeeper/pkg/mutation/mutators"
+	"github.com/pkg/errors"
 	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -19,7 +20,10 @@ import (
 )
 
 func TestWebhookAssign(t *testing.T) {
-	sys := mutation.NewSystem()
+	sys, err := mutation.NewSystem()
+	if err != nil {
+		t.Error(errors.Wrapf(err, "Failed to instantiate mutation system"))
+	}
 
 	v := &mutationsv1alpha1.Assign{
 		ObjectMeta: metav1.ObjectMeta{Name: "AddFoo"},
@@ -86,7 +90,10 @@ func TestWebhookAssign(t *testing.T) {
 }
 
 func TestWebhookAssignMetadata(t *testing.T) {
-	sys := mutation.NewSystem()
+	sys, err := mutation.NewSystem()
+	if err != nil {
+		t.Error(errors.Wrapf(err, "Failed to instantiate mutation system"))
+	}
 
 	v := &mutationsv1alpha1.AssignMetadata{
 		ObjectMeta: metav1.ObjectMeta{Name: "AddFoo"},

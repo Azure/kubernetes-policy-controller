@@ -211,7 +211,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 	// Since we aren't deleting the mutator, we are either adding or updating
 	ingestionStatus := mutationReporter.MutatorStatusError
 	defer func() {
-		// Deferring the Upsert call gives us the correct ingestionStatus
 		r.cache.Upsert(mID, ingestionStatus)
 
 		if r.reporter == nil {

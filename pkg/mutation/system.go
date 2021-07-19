@@ -17,8 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-// System keeps the list of mutators and
-// provides an interface to apply mutations.
+// System keeps the list of mutators and provides an interface to apply mutations.
 type System struct {
 	schemaDB        schema.DB
 	orderedMutators []types.Mutator

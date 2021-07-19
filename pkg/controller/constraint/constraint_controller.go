@@ -81,7 +81,7 @@ func (a *Adder) InjectTracker(t *readiness.Tracker) {
 	a.Tracker = t
 }
 
-func (a *Adder) InjectMutationCache(mutationCache *mutation.System) {}
+func (a *Adder) InjectMutationSystem(mutationCache *mutation.System) {}
 
 // Add creates a new Constraint Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.

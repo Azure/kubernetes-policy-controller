@@ -44,7 +44,7 @@ type Injector interface {
 	InjectWatchManager(*watch.Manager)
 	InjectControllerSwitch(*watch.ControllerSwitch)
 	InjectTracker(tracker *readiness.Tracker)
-	InjectMutationCache(mutationCache *mutation.System)
+	InjectMutationSystem(mutationCache *mutation.System)
 	Add(mgr manager.Manager) error
 }
 
@@ -149,7 +149,7 @@ func AddToManager(m manager.Manager, deps Dependencies) error {
 		a.InjectWatchManager(deps.WatchManger)
 		a.InjectControllerSwitch(deps.ControllerSwitch)
 		a.InjectTracker(deps.Tracker)
-		a.InjectMutationCache(deps.MutationCache)
+		a.InjectMutationSystem(deps.MutationCache)
 		if a2, ok := a.(GetPodInjector); ok {
 			a2.InjectGetPod(deps.GetPod)
 		}

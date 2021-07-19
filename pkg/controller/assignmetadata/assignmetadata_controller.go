@@ -83,7 +83,7 @@ func (a *Adder) InjectGetPod(getPod func() (*corev1.Pod, error)) {
 	a.GetPod = getPod
 }
 
-func (a *Adder) InjectMutationCache(mutationCache *mutation.System) {
+func (a *Adder) InjectMutationSystem(mutationCache *mutation.System) {
 	a.MutationSystem = mutationCache
 }
 

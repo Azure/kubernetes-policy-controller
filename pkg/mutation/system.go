@@ -84,7 +84,6 @@ func (s *System) Upsert(m types.Mutator) error {
 	s.orderedMutators = append(s.orderedMutators, nil)
 	copy(s.orderedMutators[i+1:], s.orderedMutators[i:])
 	s.orderedMutators[i] = toAdd
-
 	return nil
 }
 
@@ -102,26 +101,22 @@ func (s *System) Mutate(obj *unstructured.Unstructured, ns *corev1.Namespace) (b
 		allAppliedMutations = [][]types.Mutator{}
 	}
 
-	i := 0
-	// JULIAN - Should a
+	iterationsComplete := 0
 	convergence := reporter.SystemConvergenceFalse
 	defer func() {
 		if s.reporter == nil {
 			return
 		}
 
-		err := s.reporter.ReportIterationConvergence(convergence, i)
+		err := s.reporter.ReportIterationConvergence(convergence, iterationsComplete)
 		if err != nil {
 			log.Error(err, "failed to report mutator ingestion request")
 		}
 	}()
 
-	for i < maxIterations {
-		i++
-
+	for i := 0; i < maxIterations; i++ {
 		var appliedMutations []types.Mutator
 		old := obj.DeepCopy()
-
 		for _, m := range s.orderedMutators {
 			if s.schemaDB.HasConflicts(m.ID()) {
 				// Don't try to apply Mutators which have conflicts.
@@ -144,14 +139,12 @@ func (s *System) Mutate(obj *unstructured.Unstructured, ns *corev1.Namespace) (b
 				}
 			}
 		}
-
 		if cmp.Equal(old, obj) {
 			if i == 0 {
 				// JULIAN - Is this right?  I believe that a system that doesn't do any mutations is converging.
 				convergence = reporter.SystemConvergenceTrue
 				return false, nil
 			}
-
 			if cmp.Equal(original, obj) {
 				if *MutationLoggingEnabled {
 					logAppliedMutations("Oscillating mutation.", mutationUUID, original, allAppliedMutations)
@@ -162,10 +155,10 @@ func (s *System) Mutate(obj *unstructured.Unstructured, ns *corev1.Namespace) (b
 					obj.GetNamespace(),
 					obj.GetName())
 			}
-
 			if *MutationLoggingEnabled {
 				logAppliedMutations("Mutation applied", mutationUUID, original, allAppliedMutations)
 			}
+
 			if *MutationAnnotationsEnabled {
 				err := mutationAnnotations(obj, allAppliedMutations, mutationUUID)
 				if err != nil {
@@ -176,17 +169,21 @@ func (s *System) Mutate(obj *unstructured.Unstructured, ns *corev1.Namespace) (b
 			convergence = reporter.SystemConvergenceTrue
 			return true, nil
 		}
-
 		if *MutationLoggingEnabled || *MutationAnnotationsEnabled {
 			allAppliedMutations = append(allAppliedMutations, appliedMutations)
 		}
-	}
 
+		iterationsComplete = i
+	}
 	if *MutationLoggingEnabled {
 		logAppliedMutations("Mutation not converging", mutationUUID, original, allAppliedMutations)
 	}
-
-	return false, fmt.Errorf("mutation %s not converging for %s %s %s %s", mutationUUID, obj.GroupVersionKind().Group, obj.GroupVersionKind().Kind, obj.GetNamespace(), obj.GetName())
+	return false, fmt.Errorf("mutation %s not converging for %s %s %s %s",
+		mutationUUID,
+		obj.GroupVersionKind().Group,
+		obj.GroupVersionKind().Kind,
+		obj.GetNamespace(),
+		obj.GetName())
 }
 
 func mutationAnnotations(obj *unstructured.Unstructured, allAppliedMutations [][]types.Mutator, mutationUUID uuid.UUID) error {
@@ -243,7 +240,6 @@ func logAppliedMutations(message string, mutationUUID uuid.UUID, obj *unstructur
 
 // Remove removes the mutator from the mutation system.
 func (s *System) Remove(id types.ID) error {
-	// defer s.reportMutatorsStatus()
 	s.mux.Lock()
 	defer s.mux.Unlock()
 
@@ -270,11 +266,9 @@ func (s *System) Remove(id types.ID) error {
 	if !found {
 		return fmt.Errorf("Failed to find mutator with ID %v on sorted list", id)
 	}
-
 	copy(s.orderedMutators[i:], s.orderedMutators[i+1:])
 	s.orderedMutators[len(s.orderedMutators)-1] = nil
 	s.orderedMutators = s.orderedMutators[:len(s.orderedMutators)-1]
-
 	return nil
 }
 

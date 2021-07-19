@@ -1,4 +1,4 @@
-package mutation
+package reporter
 
 import (
 	"testing"
@@ -21,43 +21,43 @@ func TestReportMutatorIngestionRequest(t *testing.T) {
 		expectedRowLength                = 1
 	)
 
-	r, err := newStatsReporter()
+	r, err := NewStatsReporter()
 	if err != nil {
 		t.Errorf("newStatsReporter() error %v", err)
 	}
 
-	err = r.reportMutatorIngestionRequest(MutatorStatusActive, expectedDurationValueMin)
+	err = r.ReportMutatorIngestionRequest(MutatorStatusActive, expectedDurationValueMin)
 	if err != nil {
 		t.Errorf("ReportRequest error %v", err)
 	}
-	err = r.reportMutatorIngestionRequest(MutatorStatusActive, expectedDurationValueMax)
+	err = r.ReportMutatorIngestionRequest(MutatorStatusActive, expectedDurationValueMax)
 	if err != nil {
 		t.Errorf("ReportRequest error %v", err)
 	}
 
 	// Count test
-	row := checkData(t, mutatorIngestionCountMetricName, expectedRowLength)
+	row := checkData(t, MutatorIngestionCountMetricName, expectedRowLength)
 	count, ok := row.Data.(*view.CountData)
 	if !ok {
 		t.Error("ReportRequest should have aggregation Count()")
 	}
 	if count.Value != 2 {
-		t.Errorf("Metric: %v - Expected %v, got %v. ", mutatorIngestionCountMetricName, 2, count.Value)
+		t.Errorf("Metric: %v - Expected %v, got %v. ", MutatorIngestionCountMetricName, 2, count.Value)
 	}
 
 	verifyTags(t, expectedTags, row.Tags)
 
 	// Duration test
-	row = checkData(t, mutatorIngestionDurationMetricName, expectedRowLength)
+	row = checkData(t, MutatorIngestionDurationMetricName, expectedRowLength)
 	durationValue, ok := row.Data.(*view.DistributionData)
 	if !ok {
 		t.Error("ReportRequest should have aggregation Distribution()")
 	}
 	if durationValue.Min != expectedDurationMin {
-		t.Errorf("Metric: %v - Expected %v, got %v. ", mutatorIngestionDurationMetricName, expectedDurationMin, durationValue.Min)
+		t.Errorf("Metric: %v - Expected %v, got %v. ", MutatorIngestionDurationMetricName, expectedDurationMin, durationValue.Min)
 	}
 	if durationValue.Max != expectedDurationMax {
-		t.Errorf("Metric: %v - Expected %v, got %v. ", mutatorIngestionDurationMetricName, expectedDurationMax, durationValue.Max)
+		t.Errorf("Metric: %v - Expected %v, got %v. ", MutatorIngestionDurationMetricName, expectedDurationMax, durationValue.Max)
 	}
 
 	verifyTags(t, expectedTags, row.Tags)
@@ -87,7 +87,7 @@ func verifyTags(t *testing.T, expected map[string]string, actual []tag.Tag) {
 }
 
 func TestReportMutatorsStatus(t *testing.T) {
-	r, err := newStatsReporter()
+	r, err := NewStatsReporter()
 	if err != nil {
 		t.Errorf("newStatsReporter() error %v", err)
 	}
@@ -96,32 +96,32 @@ func TestReportMutatorsStatus(t *testing.T) {
 	// to date version of the data.
 
 	// 4 active, 4 error
-	err = r.reportMutatorsStatus(MutatorStatusActive, 4)
+	err = r.ReportMutatorsStatus(MutatorStatusActive, 4)
 	if err != nil {
 		t.Errorf("reportMutatorsStatus error: %v", err)
 	}
-	err = r.reportMutatorsStatus(MutatorStatusError, 4)
+	err = r.ReportMutatorsStatus(MutatorStatusError, 4)
 	if err != nil {
 		t.Errorf("reportMutatorsStatus error: %v", err)
 	}
 	// 5 active, 3 error
-	err = r.reportMutatorsStatus(MutatorStatusActive, 5)
+	err = r.ReportMutatorsStatus(MutatorStatusActive, 5)
 	if err != nil {
 		t.Errorf("reportMutatorsStatus error: %v", err)
 	}
-	err = r.reportMutatorsStatus(MutatorStatusError, 3)
+	err = r.ReportMutatorsStatus(MutatorStatusError, 3)
 	if err != nil {
 		t.Errorf("reportMutatorsStatus error: %v", err)
 	}
 
-	data, err := view.RetrieveData(mutatorsMetricName)
+	data, err := view.RetrieveData(MutatorsMetricName)
 	if err != nil {
-		t.Errorf("Error when retrieving data: %v from %v", err, mutatorsMetricName)
+		t.Errorf("Error when retrieving data: %v from %v", err, MutatorsMetricName)
 	}
 
 	l := len(data)
 	if l != 2 {
-		t.Errorf("Expected '%v' view to have length %v, got %v", mutatorsMetricName, 2, l)
+		t.Errorf("Expected '%v' view to have length %v, got %v", MutatorsMetricName, 2, l)
 	}
 
 	verifyLastValueRow(t, data, MutatorStatusActive, 5)
@@ -150,7 +150,7 @@ func verifyLastValueRow(t *testing.T, rows []*view.Row, tag MutatorIngestionStat
 }
 
 func TestReportIterationConvergence(t *testing.T) {
-	r, err := newStatsReporter()
+	r, err := NewStatsReporter()
 	if err != nil {
 		t.Errorf("newStatsReporter() error %v", err)
 	}
@@ -162,28 +162,28 @@ func TestReportIterationConvergence(t *testing.T) {
 		failureMin = failureMax
 	)
 
-	err = r.reportIterationConvergence(SystemConvergenceTrue, successMax)
+	err = r.ReportIterationConvergence(SystemConvergenceTrue, successMax)
 	if err != nil {
 		t.Errorf("reportIterationConvergence error: %v", err)
 	}
-	err = r.reportIterationConvergence(SystemConvergenceFalse, failureMax)
+	err = r.ReportIterationConvergence(SystemConvergenceFalse, failureMax)
 	if err != nil {
 		t.Errorf("reportIterationConvergence error: %v", err)
 	}
-	err = r.reportIterationConvergence(SystemConvergenceTrue, successMin)
+	err = r.ReportIterationConvergence(SystemConvergenceTrue, successMin)
 	if err != nil {
 		t.Errorf("reportIterationConvergence error: %v", err)
 	}
 
-	rows, err := view.RetrieveData(mutationSystemIterationsMetricName)
+	rows, err := view.RetrieveData(MutationSystemIterationsMetricName)
 	if err != nil {
-		t.Errorf("Error when retrieving data: %v from %v", err, mutationSystemIterationsMetricName)
+		t.Errorf("Error when retrieving data: %v from %v", err, MutationSystemIterationsMetricName)
 	}
 
 	validConvergenceStatuses := 2
 	l := len(rows)
 	if l != validConvergenceStatuses {
-		t.Errorf("Expected '%v' view to have length %v, got %v", mutatorsMetricName, validConvergenceStatuses, l)
+		t.Errorf("Expected '%v' view to have length %v, got %v", MutatorsMetricName, validConvergenceStatuses, l)
 	}
 
 	verifyDistributionRow(t, rows, SystemConvergenceTrue, 2, successMin, successMax)

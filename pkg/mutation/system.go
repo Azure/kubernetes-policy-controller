@@ -5,7 +5,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
@@ -20,19 +19,19 @@ import (
 // System keeps the list of mutators and
 // provides an interface to apply mutations.
 type System struct {
-	schemaDB        schema.DB
-	orderedMutators []types.Mutator
-	mutatorsMap     map[types.ID]types.Mutator
-	mux             sync.RWMutex
+	schemaDB           schema.DB
+	orderedMutators    []types.Mutator
+	mutatorsMap        map[types.ID]types.Mutator
+	mux                sync.RWMutex
 	ingestionStatusMap map[types.ID]MutatorIngestionStatus
 }
 
 // NewSystem initializes an empty mutation system.
 func NewSystem() *System {
 	return &System{
-		schemaDB:        *schema.New(),
-		orderedMutators: make([]types.Mutator, 0),
-		mutatorsMap:     make(map[types.ID]types.Mutator),
+		schemaDB:           *schema.New(),
+		orderedMutators:    make([]types.Mutator, 0),
+		mutatorsMap:        make(map[types.ID]types.Mutator),
 		ingestionStatusMap: make(map[types.ID]MutatorIngestionStatus),
 	}
 }
@@ -40,8 +39,8 @@ func NewSystem() *System {
 // Upsert updates or insert the given object, and returns
 // an error in case of conflicts.
 func (s *System) Upsert(m types.Mutator) error {
-	defer s.reportMutatorsStatus()
-	timeStart := time.Now()
+	// defer s.reportMutatorsStatus()
+	// timeStart := time.Now()
 	s.mux.Lock()
 	defer s.mux.Unlock()
 
@@ -51,14 +50,14 @@ func (s *System) Upsert(m types.Mutator) error {
 	}
 
 	s.ingestionStatusMap[m.ID()] = MutatorStatusError
-	defer func() {
-		if s.reporter != nil {
-			err := s.reporter.reportMutatorIngestionRequest(s.ingestionStatusMap[m.ID()], time.Since(timeStart))
-			if err != nil {
-				log.Error(err, "failed to report ingestion request")
-			}
-		}
-	}()
+	// defer func() {
+	// 	if s.reporter != nil {
+	// 		err := s.reporter.reportMutatorIngestionRequest(s.ingestionStatusMap[m.ID()], time.Since(timeStart))
+	// 		if err != nil {
+	// 			log.Error(err, "failed to report ingestion request")
+	// 		}
+	// 	}
+	// }()
 
 	toAdd := m.DeepCopy()
 
@@ -217,7 +216,7 @@ func logAppliedMutations(message string, mutationUUID uuid.UUID, obj *unstructur
 
 // Remove removes the mutator from the mutation system.
 func (s *System) Remove(id types.ID) error {
-	defer s.reportMutatorsStatus()
+	// defer s.reportMutatorsStatus()
 	s.mux.Lock()
 	defer s.mux.Unlock()
 
@@ -264,24 +263,24 @@ func (s *System) Get(id types.ID) types.Mutator {
 	return mutator.DeepCopy()
 }
 
-func (s *System) reportMutatorsStatus() {
-	if s.reporter == nil {
-		return
-	}
+// func (s *System) reportMutatorsStatus() {
+// 	if s.reporter == nil {
+// 		return
+// 	}
+//
+// 	for status, count := range s.tallyStatus() {
+// 		if err := s.reporter.reportMutatorsStatus(status, count); err != nil {
+// 			log.Error(err, "failed to report mutator status")
+// 		}
+// 	}
+// }
 
-	for status, count := range s.tallyStatus() {
-		if err := s.reporter.reportMutatorsStatus(status, count); err != nil {
-			log.Error(err, "failed to report mutator status")
-		}
-	}
-}
-
-func (s *System) tallyStatus() map[MutatorIngestionStatus]int {
+func (s *System) tallyStatus(mc mutatorCache) map[MutatorIngestionStatus]int {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 
 	statusTally := make(map[MutatorIngestionStatus]int)
-	for _, status := range s.ingestionStatusMap {
+	for _, status := range mc {
 		statusTally[status]++
 	}
 	return statusTally

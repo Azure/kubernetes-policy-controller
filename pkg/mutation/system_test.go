@@ -533,11 +533,8 @@ func TestIngestionStatusMap(t *testing.T) {
 		Labels: map[string]string{"active": "true"},
 	}
 
-	s, err := NewSystem()
-	if err != nil {
-		t.Error("Failed to create mutation system")
-	}
-	err = s.Upsert(foo)
+	s := NewSystem()
+	err := s.Upsert(foo)
 	if err != nil {
 		t.Fatalf("got Upsert() error = %v, want <nil>", err)
 	}

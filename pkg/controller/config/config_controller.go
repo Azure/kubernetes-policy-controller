@@ -92,7 +92,7 @@ func (a *Adder) InjectProcessExcluder(m *process.Excluder) {
 	a.ProcessExcluder = m
 }
 
-func (a *Adder) InjectMutationSystem(mutationCache *mutation.System) {}
+func (a *Adder) InjectMutationSystem(mutationSystem *mutation.System) {}
 
 // newReconciler returns a new reconcile.Reconciler
 // events is the channel from which sync controller will receive the events

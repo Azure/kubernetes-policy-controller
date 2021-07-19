@@ -33,9 +33,9 @@ var AddToManagerFuncs []func(manager.Manager, *client.Client, *process.Excluder,
 // +kubebuilder:rbac:groups="",namespace=gatekeeper-system,resources=events,verbs=create;patch
 
 // AddToManager adds all Controllers to the Manager.
-func AddToManager(m manager.Manager, opa *client.Client, processExcluder *process.Excluder, mutationCache *mutation.System) error {
+func AddToManager(m manager.Manager, opa *client.Client, processExcluder *process.Excluder, mutationSystem *mutation.System) error {
 	for _, f := range AddToManagerFuncs {
-		if err := f(m, opa, processExcluder, mutationCache); err != nil {
+		if err := f(m, opa, processExcluder, mutationSystem); err != nil {
 			return err
 		}
 	}

@@ -83,19 +83,19 @@ func (a *Adder) InjectGetPod(getPod func() (*corev1.Pod, error)) {
 	a.GetPod = getPod
 }
 
-func (a *Adder) InjectMutationSystem(mutationCache *mutation.System) {
-	a.MutationSystem = mutationCache
+func (a *Adder) InjectMutationSystem(mutationSystem *mutation.System) {
+	a.MutationSystem = mutationSystem
 }
 
 // newReconciler returns a new reconcile.Reconciler.
-func newReconciler(mgr manager.Manager, mutationCache *mutation.System, tracker *readiness.Tracker, getPod func() (*corev1.Pod, error)) *Reconciler {
+func newReconciler(mgr manager.Manager, mutationSystem *mutation.System, tracker *readiness.Tracker, getPod func() (*corev1.Pod, error)) *Reconciler {
 	rep, err := mutationReporter.NewStatsReporter()
 	if err != nil {
 		log.Error(err, "Failed to create mutation stats reporter")
 	}
 
 	r := &Reconciler{
-		system:   mutationCache,
+		system:   mutationSystem,
 		Client:   mgr.GetClient(),
 		tracker:  tracker,
 		getPod:   getPod,

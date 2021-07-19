@@ -119,7 +119,7 @@ func setupController(mgr manager.Manager, wm *watch.Manager, opa *opa.Client, mu
 		Tracker:          tracker,
 		GetPod:           func() (*corev1.Pod, error) { return pod, nil },
 		ProcessExcluder:  processExcluder,
-		MutationCache:    mutationSystem,
+		MutationSystem:   mutationSystem,
 	}
 	if err := controller.AddToManager(mgr, opts); err != nil {
 		return fmt.Errorf("registering controllers: %w", err)
@@ -148,12 +148,12 @@ func Test_AssignMetadata(t *testing.T) {
 	// Wire up the rest.
 	mgr, wm := setupManager(t)
 	opaClient := setupOpa(t)
-	mutationCache, err := mutation.NewSystem()
+	mutationSystem, err := mutation.NewSystem()
 	if err != nil {
 		t.Error(errors.Wrapf(err, "Failed to instantiate mutation system"))
 	}
 
-	if err := setupController(mgr, wm, opaClient, mutationCache); err != nil {
+	if err := setupController(mgr, wm, opaClient, mutationSystem); err != nil {
 		t.Fatalf("setupControllers: %v", err)
 	}
 
@@ -173,7 +173,7 @@ func Test_AssignMetadata(t *testing.T) {
 	// Verify that the AssignMetadata is present in the cache
 	for _, am := range testAssignMetadata {
 		id := mutationtypes.MakeID(am)
-		exptectedMutator := mutationCache.Get(id)
+		exptectedMutator := mutationSystem.Get(id)
 		g.Expect(exptectedMutator).NotTo(gomega.BeNil(), "expected mutator was not found")
 	}
 }
@@ -199,11 +199,11 @@ func Test_Assign(t *testing.T) {
 	// Wire up the rest.
 	mgr, wm := setupManager(t)
 	opaClient := setupOpa(t)
-	mutationCache, err := mutation.NewSystem()
+	mutationSystem, err := mutation.NewSystem()
 	if err != nil {
 		t.Error(errors.Wrapf(err, "Failed to initialize mutation system"))
 	}
-	if err := setupController(mgr, wm, opaClient, mutationCache); err != nil {
+	if err := setupController(mgr, wm, opaClient, mutationSystem); err != nil {
 		t.Fatalf("setupControllers: %v", err)
 	}
 
@@ -223,7 +223,7 @@ func Test_Assign(t *testing.T) {
 	// Verify that the Assign is present in the cache
 	for _, am := range testAssign {
 		id := mutationtypes.MakeID(am)
-		exptectedMutator := mutationCache.Get(id)
+		exptectedMutator := mutationSystem.Get(id)
 		g.Expect(exptectedMutator).NotTo(gomega.BeNil(), "expected mutator was not found")
 	}
 }

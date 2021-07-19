@@ -249,7 +249,7 @@ func setupControllers(mgr ctrl.Manager, sw *watch.ControllerSwitch, tracker *rea
 		setupLog.Error(err, "unable to set up OPA client")
 	}
 
-	mutationCache, err := mutation.NewSystem()
+	mutationSystem, err := mutation.NewSystem()
 	if err != nil {
 		setupLog.Error(err, "unable to create mutation system")
 		os.Exit(1)
@@ -283,7 +283,7 @@ func setupControllers(mgr ctrl.Manager, sw *watch.ControllerSwitch, tracker *rea
 		ControllerSwitch: sw,
 		Tracker:          tracker,
 		ProcessExcluder:  processExcluder,
-		MutationCache:    mutationCache,
+		MutationSystem:   mutationSystem,
 	}
 	if err := controller.AddToManager(mgr, opts); err != nil {
 		setupLog.Error(err, "unable to register controllers with the manager")
@@ -292,7 +292,7 @@ func setupControllers(mgr ctrl.Manager, sw *watch.ControllerSwitch, tracker *rea
 
 	if operations.IsAssigned(operations.Webhook) {
 		setupLog.Info("setting up webhooks")
-		if err := webhook.AddToManager(mgr, client, processExcluder, mutationCache); err != nil {
+		if err := webhook.AddToManager(mgr, client, processExcluder, mutationSystem); err != nil {
 			setupLog.Error(err, "unable to register webhooks with the manager")
 			os.Exit(1)
 		}

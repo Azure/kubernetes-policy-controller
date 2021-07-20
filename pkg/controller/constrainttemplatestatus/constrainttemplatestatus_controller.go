@@ -201,7 +201,7 @@ func (r *ReconcileConstraintStatus) Reconcile(ctx context.Context, request recon
 		return reconcile.Result{}, err
 	}
 
-	if err := r.statusClient.Status().Update(context.Background(), template); err != nil {
+	if err := r.statusClient.Status().Update(ctx, template); err != nil {
 		return reconcile.Result{Requeue: true}, nil
 	}
 	return reconcile.Result{}, nil

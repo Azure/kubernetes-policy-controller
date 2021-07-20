@@ -16,6 +16,7 @@ limitations under the License.
 package watch
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -75,7 +76,7 @@ func (r *recordKeeper) NewRegistrar(parentName string, events chan<- event.Gener
 }
 
 // RemoveRegistrar removes a registrar and all its watches.
-func (r *recordKeeper) RemoveRegistrar(parentName string) error {
+func (r *recordKeeper) RemoveRegistrar(ctx context.Context, parentName string) error {
 	r.intentMux.Lock()
 	registrar := r.registrars[parentName]
 	r.intentMux.Unlock()
@@ -83,7 +84,7 @@ func (r *recordKeeper) RemoveRegistrar(parentName string) error {
 	if registrar == nil {
 		return nil
 	}
-	if err := registrar.ReplaceWatch(nil); err != nil {
+	if err := registrar.ReplaceWatch(ctx, nil); err != nil {
 		return err
 	}
 
@@ -220,17 +221,17 @@ type Registrar struct {
 //   * The registrar's event channel does not have sufficient capacity to receive existing resources
 //   * The consumer of the channel does not receive any unbuffered events.
 // XXXX also may block if the watch manager has not been started.
-func (r *Registrar) AddWatch(gvk schema.GroupVersionKind) error {
+func (r *Registrar) AddWatch(ctx context.Context, gvk schema.GroupVersionKind) error {
 	wv := vitals{
 		gvk:        gvk,
 		registrars: map[*Registrar]bool{r: true},
 	}
 	r.managedKinds.Update(r.parentName, vitalsByGVK{gvk: wv})
-	return r.mgr.addWatch(r, gvk)
+	return r.mgr.addWatch(ctx, r, gvk)
 }
 
 // ReplaceWatch replaces the set of watched resources.
-func (r *Registrar) ReplaceWatch(gvks []schema.GroupVersionKind) error {
+func (r *Registrar) ReplaceWatch(ctx context.Context, gvks []schema.GroupVersionKind) error {
 	roster := make(vitalsByGVK)
 	for _, gvk := range gvks {
 		wv := vitals{
@@ -240,7 +241,7 @@ func (r *Registrar) ReplaceWatch(gvks []schema.GroupVersionKind) error {
 		roster[gvk] = wv
 	}
 	r.managedKinds.ReplaceRegistrarRoster(r, roster)
-	return r.mgr.replaceWatches(r)
+	return r.mgr.replaceWatches(ctx, r)
 }
 
 // RemoveWatch removes a watch for the given kind.

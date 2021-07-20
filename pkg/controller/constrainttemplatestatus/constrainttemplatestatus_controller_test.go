@@ -134,7 +134,8 @@ violation[{"msg": "denied!"}] {
 		Tracker:          tracker,
 		GetPod:           func() (*corev1.Pod, error) { return pod, nil },
 	}
-	g.Expect(adder.Add(mgr)).NotTo(gomega.HaveOccurred())
+	ctx := context.Background()
+	g.Expect(adder.Add(ctx, mgr)).NotTo(gomega.HaveOccurred())
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	mgrStopped := StartTestManager(ctx, mgr, g)

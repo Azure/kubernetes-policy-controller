@@ -1,6 +1,7 @@
 package constraint
 
 import (
+	"context"
 	"testing"
 
 	"github.com/open-policy-agent/gatekeeper/pkg/util"
@@ -14,7 +15,8 @@ func TestReportConstraints(t *testing.T) {
 		enforcementAction: util.Deny,
 	}
 
-	r, err := newStatsReporter()
+	ctx := context.Background()
+	r, err := newStatsReporter(ctx)
 	if err != nil {
 		t.Errorf("newStatsReporter() error %v", err)
 	}

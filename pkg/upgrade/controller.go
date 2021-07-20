@@ -19,8 +19,8 @@ import (
 )
 
 // AddToManager adds upgrade manager to the Manager.
-func AddToManager(m manager.Manager) error {
-	am, err := New(context.Background(), m)
+func AddToManager(ctx context.Context, m manager.Manager) error {
+	am, err := New(ctx, m)
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,7 @@
 package webhook
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -21,7 +22,8 @@ func TestValidationReportRequest(t *testing.T) {
 		"admission_status": "allow",
 	}
 
-	r, err := newStatsReporter()
+	ctx := context.Background()
+	r, err := newStatsReporter(ctx)
 	if err != nil {
 		t.Errorf("newStatsReporter() error %v", err)
 	}
@@ -41,7 +43,8 @@ func TestMutationReportRequest(t *testing.T) {
 		"mutation_status": "success",
 	}
 
-	r, err := newStatsReporter()
+	ctx := context.Background()
+	r, err := newStatsReporter(ctx)
 	if err != nil {
 		t.Errorf("newStatsReporter() error %v", err)
 	}

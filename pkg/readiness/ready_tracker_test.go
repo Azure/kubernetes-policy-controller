@@ -95,7 +95,7 @@ func setupOpa(t *testing.T) *opa.Client {
 	return client
 }
 
-func setupController(mgr manager.Manager, wm *watch.Manager, opa *opa.Client, mutationSystem *mutation.System) error {
+func setupController(ctx context.Context, mgr manager.Manager, wm *watch.Manager, opa *opa.Client, mutationSystem *mutation.System) error {
 	tracker, err := readiness.SetupTracker(mgr, mutationSystem != nil)
 	if err != nil {
 		return fmt.Errorf("setting up tracker: %w", err)
@@ -120,7 +120,7 @@ func setupController(mgr manager.Manager, wm *watch.Manager, opa *opa.Client, mu
 		ProcessExcluder:  processExcluder,
 		MutationCache:    mutationSystem,
 	}
-	if err := controller.AddToManager(mgr, opts); err != nil {
+	if err := controller.AddToManager(ctx, mgr, opts); err != nil {
 		return fmt.Errorf("registering controllers: %w", err)
 	}
 	return nil
@@ -148,7 +148,8 @@ func Test_AssignMetadata(t *testing.T) {
 	mgr, wm := setupManager(t)
 	opaClient := setupOpa(t)
 	mutationCache := mutation.NewSystem()
-	if err := setupController(mgr, wm, opaClient, mutationCache); err != nil {
+	ctx := context.Background()
+	if err := setupController(ctx, mgr, wm, opaClient, mutationCache); err != nil {
 		t.Fatalf("setupControllers: %v", err)
 	}
 
@@ -195,7 +196,8 @@ func Test_Assign(t *testing.T) {
 	mgr, wm := setupManager(t)
 	opaClient := setupOpa(t)
 	mutationCache := mutation.NewSystem()
-	if err := setupController(mgr, wm, opaClient, mutationCache); err != nil {
+	ctx := context.Background()
+	if err := setupController(ctx, mgr, wm, opaClient, mutationCache); err != nil {
 		t.Fatalf("setupControllers: %v", err)
 	}
 
@@ -241,7 +243,8 @@ func Test_Tracker(t *testing.T) {
 	mgr, wm := setupManager(t)
 	opaClient := setupOpa(t)
 
-	if err := setupController(mgr, wm, opaClient, nil); err != nil {
+	ctx := context.Background()
+	if err := setupController(ctx, mgr, wm, opaClient, nil); err != nil {
 		t.Fatalf("setupControllers: %v", err)
 	}
 
@@ -320,7 +323,8 @@ func Test_Tracker_UnregisteredCachedData(t *testing.T) {
 	// Wire up the rest.
 	mgr, wm := setupManager(t)
 	opaClient := setupOpa(t)
-	if err := setupController(mgr, wm, opaClient, nil); err != nil {
+	ctx := context.Background()
+	if err := setupController(ctx, mgr, wm, opaClient, nil); err != nil {
 		t.Fatalf("setupControllers: %v", err)
 	}
 

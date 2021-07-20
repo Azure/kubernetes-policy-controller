@@ -79,11 +79,9 @@ func (r *reporter) reportRunStart(t time.Time) error {
 	return metrics.Record(r.ctx, lastRunTimeM.M(val))
 }
 
-// newStatsReporter creaters a reporter for audit metrics.
-func newStatsReporter() (*reporter, error) {
-	ctx, err := tag.New(
-		context.Background(),
-	)
+// newStatsReporter creates a reporter for audit metrics.
+func newStatsReporter(ctx context.Context) (*reporter, error) {
+	ctx, err := tag.New(ctx)
 	if err != nil {
 		return nil, err
 	}

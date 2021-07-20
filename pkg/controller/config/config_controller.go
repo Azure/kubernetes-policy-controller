@@ -60,7 +60,7 @@ type Adder struct {
 
 // Add creates a new ConfigController and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
-func (a *Adder) Add(mgr manager.Manager) error {
+func (a *Adder) Add(_ context.Context, mgr manager.Manager) error {
 	// Events will be used to receive events from dynamic watches registered
 	// via the registrar below.
 	events := make(chan event.GenericEvent, 1024)
@@ -215,7 +215,7 @@ func (r *ReconcileConfig) Reconcile(ctx context.Context, request reconcile.Reque
 	// after a deprecation period, all finalizer code can be removed.
 	if exists && hasFinalizer(instance) {
 		removeFinalizer(instance)
-		if err := r.writer.Update(context.Background(), instance); err != nil {
+		if err := r.writer.Update(ctx, instance); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
@@ -286,7 +286,7 @@ func (r *ReconcileConfig) Reconcile(ctx context.Context, request reconcile.Reque
 	// Otherwise the sync controller will drop events for the newly watched kinds.
 	// Defer error handling so object re-sync happens even if the watch is hard
 	// errored due to a missing GVK in the watch set.
-	if err := r.watcher.ReplaceWatch(newSyncOnly.Items()); err != nil {
+	if err := r.watcher.ReplaceWatch(ctx, newSyncOnly.Items()); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -347,7 +347,7 @@ func (r *ReconcileConfig) replayData(ctx context.Context) error {
 				continue
 			}
 
-			if _, err := r.opa.AddData(context.Background(), &u.Items[i]); err != nil {
+			if _, err := r.opa.AddData(ctx, &u.Items[i]); err != nil {
 				r.syncMetricsCache.AddObject(syncKey, syncc.Tags{
 					Kind:   u.Items[i].GetKind(),
 					Status: metrics.ErrorStatus,

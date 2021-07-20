@@ -87,8 +87,8 @@ func (a *Adder) InjectMutationCache(mutationCache *mutation.System) {}
 
 // Add creates a new Constraint Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
-func (a *Adder) Add(mgr manager.Manager) error {
-	reporter, err := newStatsReporter()
+func (a *Adder) Add(ctx context.Context, mgr manager.Manager) error {
+	reporter, err := newStatsReporter(ctx)
 	if err != nil {
 		log.Error(err, "StatsReporter could not start")
 		return err
@@ -258,7 +258,7 @@ func (r *ReconcileConstraint) Reconcile(ctx context.Context, request reconcile.R
 
 	if HasFinalizer(instance) {
 		RemoveFinalizer(instance)
-		if err := r.writer.Update(context.Background(), instance); err != nil {
+		if err := r.writer.Update(ctx, instance); err != nil {
 			return reconcile.Result{Requeue: true}, nil
 		}
 	}
@@ -274,7 +274,7 @@ func (r *ReconcileConstraint) Reconcile(ctx context.Context, request reconcile.R
 		status.Status.ObservedGeneration = instance.GetGeneration()
 		status.Status.Errors = nil
 		if c, err := r.opa.GetConstraint(ctx, instance); err != nil || !constraints.SemanticEqual(instance, c) {
-			if err := r.cacheConstraint(instance); err != nil {
+			if err := r.cacheConstraint(ctx, instance); err != nil {
 				r.constraintsCache.addConstraintKey(constraintKey, tags{
 					enforcementAction: enforcementAction,
 					status:            metrics.ErrorStatus,
@@ -290,7 +290,7 @@ func (r *ReconcileConstraint) Reconcile(ctx context.Context, request reconcile.R
 		}
 
 		status.Status.Enforced = true
-		if err = r.writer.Update(context.Background(), status); err != nil {
+		if err = r.writer.Update(ctx, status); err != nil {
 			return reconcile.Result{Requeue: true}, nil
 		}
 
@@ -302,7 +302,7 @@ func (r *ReconcileConstraint) Reconcile(ctx context.Context, request reconcile.R
 		reportMetrics = true
 	} else {
 		r.log.Info("handling constraint delete", "instance", instance)
-		if _, err := r.opa.RemoveConstraint(context.Background(), instance); err != nil {
+		if _, err := r.opa.RemoveConstraint(ctx, instance); err != nil {
 			if _, ok := err.(*opa.UnrecognizedConstraintError); !ok {
 				return reconcile.Result{}, err
 			}
@@ -392,13 +392,13 @@ func logRemoval(l logr.Logger, constraint *unstructured.Unstructured, enforcemen
 	)
 }
 
-func (r *ReconcileConstraint) cacheConstraint(instance *unstructured.Unstructured) error {
+func (r *ReconcileConstraint) cacheConstraint(ctx context.Context, instance *unstructured.Unstructured) error {
 	t := r.tracker.For(instance.GroupVersionKind())
 
 	obj := instance.DeepCopy()
 	// Remove the status field since we do not need it for OPA
 	unstructured.RemoveNestedField(obj.Object, "status")
-	_, err := r.opa.AddConstraint(context.Background(), obj)
+	_, err := r.opa.AddConstraint(ctx, obj)
 	if err != nil {
 		t.TryCancelExpect(obj)
 		return err

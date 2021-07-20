@@ -51,10 +51,8 @@ type reporter struct {
 }
 
 // newStatsReporter creaters a reporter for webhook metrics.
-func newStatsReporter() (StatsReporter, error) {
-	ctx, err := tag.New(
-		context.Background(),
-	)
+func newStatsReporter(ctx context.Context) (StatsReporter, error) {
+	ctx, err := tag.New(ctx)
 	if err != nil {
 		return nil, err
 	}

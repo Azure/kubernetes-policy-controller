@@ -105,7 +105,8 @@ func TestReconcile(t *testing.T) {
 	recFn, _ := SetupTestReconcile(rec)
 	g.Expect(add(mgr, recFn)).NotTo(gomega.HaveOccurred())
 	statusAdder := &mutatorstatus.Adder{}
-	g.Expect(statusAdder.Add(mgr)).NotTo(gomega.HaveOccurred())
+	ctx := context.Background()
+	g.Expect(statusAdder.Add(ctx, mgr)).NotTo(gomega.HaveOccurred())
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	mgrStopped := StartTestManager(ctx, mgr, g)

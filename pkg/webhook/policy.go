@@ -68,8 +68,8 @@ func init() {
 // +kubebuilder:rbac:groups=*,resources=*,verbs=get;list;watch
 
 // AddPolicyWebhook registers the policy webhook server with the manager.
-func AddPolicyWebhook(mgr manager.Manager, opa *opa.Client, processExcluder *process.Excluder, mutationCache *mutation.System) error {
-	reporter, err := newStatsReporter()
+func AddPolicyWebhook(ctx context.Context, mgr manager.Manager, opa *opa.Client, processExcluder *process.Excluder, mutationCache *mutation.System) error {
+	reporter, err := newStatsReporter(ctx)
 	if err != nil {
 		return err
 	}

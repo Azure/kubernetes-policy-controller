@@ -169,7 +169,7 @@ func (r *ReconcileSync) Reconcile(ctx context.Context, request reconcile.Request
 			// This is a deletion; remove the data
 			instance.SetNamespace(unpackedRequest.Namespace)
 			instance.SetName(unpackedRequest.Name)
-			if _, err := r.opa.RemoveData(context.Background(), instance); err != nil {
+			if _, err := r.opa.RemoveData(ctx, instance); err != nil {
 				return reconcile.Result{}, err
 			}
 
@@ -199,7 +199,7 @@ func (r *ReconcileSync) Reconcile(ctx context.Context, request reconcile.Request
 	}
 
 	if !instance.GetDeletionTimestamp().IsZero() {
-		if _, err := r.opa.RemoveData(context.Background(), instance); err != nil {
+		if _, err := r.opa.RemoveData(ctx, instance); err != nil {
 			return reconcile.Result{}, err
 		}
 
@@ -220,7 +220,7 @@ func (r *ReconcileSync) Reconcile(ctx context.Context, request reconcile.Request
 		logging.ResourceName, instance.GetName(),
 	)
 
-	if _, err := r.opa.AddData(context.Background(), instance); err != nil {
+	if _, err := r.opa.AddData(ctx, instance); err != nil {
 		r.metricsCache.AddObject(syncKey, Tags{
 			Kind:   instance.GetKind(),
 			Status: metrics.ErrorStatus,

@@ -51,11 +51,11 @@ func init() {
 // TODO enable this once mutation is beta +kubebuilder:rbac:groups=*,resources=*,verbs=get;list;watch;update
 
 // AddMutatingWebhook registers the mutating webhook server with the manager.
-func AddMutatingWebhook(mgr manager.Manager, client *opa.Client, processExcluder *process.Excluder, mutationSystem *mutation.System) error {
+func AddMutatingWebhook(ctx context.Context, mgr manager.Manager, client *opa.Client, processExcluder *process.Excluder, mutationSystem *mutation.System) error {
 	if !*mutation.MutationEnabled {
 		return nil
 	}
-	reporter, err := newStatsReporter()
+	reporter, err := newStatsReporter(ctx)
 	if err != nil {
 		return err
 	}

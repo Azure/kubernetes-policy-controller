@@ -63,7 +63,7 @@ func (a *Adder) InjectMutationCache(mutationCache *mutation.System) {}
 
 // Add creates a new Mutator Status Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
-func (a *Adder) Add(mgr manager.Manager) error {
+func (a *Adder) Add(_ context.Context, mgr manager.Manager) error {
 	if !operations.IsAssigned(operations.MutationStatus) {
 		return nil
 	}
@@ -248,7 +248,7 @@ func (r *ReconcileMutatorStatus) Reconcile(ctx context.Context, request reconcil
 		return reconcile.Result{}, err
 	}
 
-	if err = r.statusClient.Status().Update(context.Background(), instance); err != nil {
+	if err = r.statusClient.Status().Update(ctx, instance); err != nil {
 		return reconcile.Result{Requeue: true}, nil
 	}
 

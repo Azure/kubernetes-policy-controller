@@ -118,7 +118,7 @@ func (c *nsCache) Get(ctx context.Context, client client.Client, namespace strin
 
 // New creates a new manager for audit.
 func New(ctx context.Context, mgr manager.Manager, opa *opa.Client, processExcluder *process.Excluder) (*Manager, error) {
-	reporter, err := newStatsReporter()
+	reporter, err := newStatsReporter(ctx)
 	if err != nil {
 		log.Error(err, "StatsReporter could not start")
 		return nil, err
@@ -684,7 +684,6 @@ func (ucloop *updateConstraintLoop) update(ctx context.Context, constraintsGVKs 
 			case <-ucloop.stop:
 				return true, nil
 			default:
-				ctx := context.Background()
 				var latestItem unstructured.Unstructured
 				item.DeepCopyInto(&latestItem)
 				name := latestItem.GetName()

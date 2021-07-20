@@ -279,7 +279,7 @@ func (r *ReconcileConstraintTemplate) Reconcile(ctx context.Context, request rec
 
 	if containsString(finalizerName, ct.GetFinalizers()) {
 		RemoveFinalizer(ct)
-		if err := r.Update(context.Background(), ct); err != nil && !errors.IsNotFound(err) {
+		if err := r.Update(ctx, ct); err != nil && !errors.IsNotFound(err) {
 			log.Error(err, "update error")
 			return reconcile.Result{Requeue: true}, nil
 		}
@@ -296,7 +296,7 @@ func (r *ReconcileConstraintTemplate) Reconcile(ctx context.Context, request rec
 			logAction(ctRef, deletedAction)
 			r.metrics.registry.remove(request.NamespacedName)
 		} else {
-			result, err = r.handleDelete(ctUnversioned)
+			result, err = r.handleDelete(ctx, ctUnversioned)
 			if err != nil {
 				log.Error(err, "deletion error")
 				logError(request.NamespacedName.Name)
@@ -328,7 +328,7 @@ func (r *ReconcileConstraintTemplate) Reconcile(ctx context.Context, request rec
 		return reconcile.Result{}, err
 	}
 
-	unversionedProposedCRD, err := r.opa.CreateCRD(context.Background(), unversionedCT)
+	unversionedProposedCRD, err := r.opa.CreateCRD(ctx, unversionedCT)
 	if err != nil {
 		log.Error(err, "CRD creation error")
 		r.tracker.TryCancelTemplate(unversionedCT) // Don't track templates that failed compilation
@@ -344,7 +344,7 @@ func (r *ReconcileConstraintTemplate) Reconcile(ctx context.Context, request rec
 			status.Status.Errors = append(status.Status.Errors, createErr)
 		}
 
-		if updateErr := r.Update(context.Background(), status); updateErr != nil {
+		if updateErr := r.Update(ctx, status); updateErr != nil {
 			log.Error(updateErr, "update error")
 			return reconcile.Result{Requeue: true}, nil
 		}
@@ -358,7 +358,7 @@ func (r *ReconcileConstraintTemplate) Reconcile(ctx context.Context, request rec
 		r.tracker.TryCancelTemplate(unversionedCT) // Don't track templates that failed compilation
 		r.metrics.registry.add(request.NamespacedName, metrics.ErrorStatus)
 		logError(request.NamespacedName.Name)
-		err := r.reportErrorOnCTStatus("conversion_error", "Could not convert from unversioned resource", status, err)
+		err := r.reportErrorOnCTStatus(ctx, "conversion_error", "Could not convert from unversioned resource", status, err)
 		return reconcile.Result{}, err
 	}
 
@@ -383,7 +383,7 @@ func (r *ReconcileConstraintTemplate) Reconcile(ctx context.Context, request rec
 		return reconcile.Result{}, err
 	}
 
-	result, err := r.handleUpdate(ct, unversionedCT, proposedCRD, currentCRD, status)
+	result, err := r.handleUpdate(ctx, ct, unversionedCT, proposedCRD, currentCRD, status)
 	if err != nil {
 		log.Error(err, "update error")
 		logError(request.NamespacedName.Name)
@@ -395,20 +395,21 @@ func (r *ReconcileConstraintTemplate) Reconcile(ctx context.Context, request rec
 	return result, err
 }
 
-func (r *ReconcileConstraintTemplate) reportErrorOnCTStatus(code, message string, status *statusv1beta1.ConstraintTemplatePodStatus, err error) error {
+func (r *ReconcileConstraintTemplate) reportErrorOnCTStatus(ctx context.Context, code, message string, status *statusv1beta1.ConstraintTemplatePodStatus, err error) error {
 	status.Status.Errors = []*v1beta1.CreateCRDError{}
 	createErr := &v1beta1.CreateCRDError{
 		Code:    code,
 		Message: fmt.Sprintf("%s: %s", message, err),
 	}
 	status.Status.Errors = append(status.Status.Errors, createErr)
-	if err2 := r.Update(context.Background(), status); err2 != nil {
+	if err2 := r.Update(ctx, status); err2 != nil {
 		return errorpkg.Wrap(err, fmt.Sprintf("Could not update status: %s", err2))
 	}
 	return err
 }
 
 func (r *ReconcileConstraintTemplate) handleUpdate(
+	ctx context.Context,
 	ct *v1beta1.ConstraintTemplate,
 	unversionedCT *templates.ConstraintTemplate,
 	proposedCRD, currentCRD *apiextensionsv1.CustomResourceDefinition,
@@ -423,11 +424,11 @@ func (r *ReconcileConstraintTemplate) handleUpdate(
 	// It's important that opa.AddTemplate() is called first. That way we can
 	// rely on a template's existence in OPA to know whether a watch needs
 	// to be removed
-	if _, err := r.opa.AddTemplate(context.Background(), unversionedCT); err != nil {
+	if _, err := r.opa.AddTemplate(ctx, unversionedCT); err != nil {
 		if err := r.metrics.reportIngestDuration(metrics.ErrorStatus, time.Since(beginCompile)); err != nil {
 			log.Error(err, "failed to report constraint template ingestion duration")
 		}
-		err := r.reportErrorOnCTStatus("ingest_error", "Could not ingest Rego", status, err)
+		err := r.reportErrorOnCTStatus(ctx, "ingest_error", "Could not ingest Rego", status, err)
 		r.tracker.TryCancelTemplate(unversionedCT) // Don't track templates that failed compilation
 		return reconcile.Result{}, err
 	}
@@ -455,24 +456,24 @@ func (r *ReconcileConstraintTemplate) handleUpdate(
 
 	if currentCRD == nil {
 		log.Info("creating crd")
-		if err := r.Create(context.TODO(), newCRD); err != nil {
-			err := r.reportErrorOnCTStatus("create_error", "Could not create CRD", status, err)
+		if err := r.Create(ctx, newCRD); err != nil {
+			err := r.reportErrorOnCTStatus(ctx, "create_error", "Could not create CRD", status, err)
 			return reconcile.Result{}, err
 		}
 	} else if !reflect.DeepEqual(newCRD, currentCRD) {
 		log.Info("updating crd")
-		if err := r.Update(context.Background(), newCRD); err != nil {
-			err := r.reportErrorOnCTStatus("update_error", "Could not update CRD", status, err)
+		if err := r.Update(ctx, newCRD); err != nil {
+			err := r.reportErrorOnCTStatus(ctx, "update_error", "Could not update CRD", status, err)
 			return reconcile.Result{}, err
 		}
 	}
 	// This must go after CRD creation/update as otherwise AddWatch will always fail
 	log.Info("making sure constraint is in watcher registry")
-	if err := r.addWatch(makeGvk(ct.Spec.CRD.Spec.Names.Kind)); err != nil {
+	if err := r.addWatch(ctx, makeGvk(ct.Spec.CRD.Spec.Names.Kind)); err != nil {
 		log.Error(err, "error adding template to watch registry")
 		return reconcile.Result{}, err
 	}
-	if err := r.Update(context.Background(), status); err != nil {
+	if err := r.Update(ctx, status); err != nil {
 		log.Error(err, "update error")
 		return reconcile.Result{Requeue: true}, nil
 	}
@@ -480,6 +481,7 @@ func (r *ReconcileConstraintTemplate) handleUpdate(
 }
 
 func (r *ReconcileConstraintTemplate) handleDelete(
+	ctx context.Context,
 	ct *templates.ConstraintTemplate) (reconcile.Result, error) {
 	log := log.WithValues("name", ct.GetName())
 	log.Info("removing from watcher registry")
@@ -491,7 +493,7 @@ func (r *ReconcileConstraintTemplate) handleDelete(
 
 	// removing the template from the OPA cache must go last as we are relying
 	// on that cache to derive the Kind to remove from the watch
-	if _, err := r.opa.RemoveTemplate(context.Background(), ct); err != nil {
+	if _, err := r.opa.RemoveTemplate(ctx, ct); err != nil {
 		return reconcile.Result{}, err
 	}
 	return reconcile.Result{}, nil
@@ -563,11 +565,11 @@ func (r *ReconcileConstraintTemplate) getOrCreatePodStatus(ctName string) (*stat
 	return statusObj, nil
 }
 
-func (r *ReconcileConstraintTemplate) addWatch(kind schema.GroupVersionKind) error {
-	if err := r.watcher.AddWatch(kind); err != nil {
+func (r *ReconcileConstraintTemplate) addWatch(ctx context.Context, kind schema.GroupVersionKind) error {
+	if err := r.watcher.AddWatch(ctx, kind); err != nil {
 		return err
 	}
-	return r.statusWatcher.AddWatch(kind)
+	return r.statusWatcher.AddWatch(ctx, kind)
 }
 
 func (r *ReconcileConstraintTemplate) removeWatch(kind schema.GroupVersionKind) error {

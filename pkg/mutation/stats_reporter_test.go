@@ -1,9 +1,10 @@
-package reporter
+package mutation
 
 import (
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/gatekeeper/pkg/metrics"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
 )
@@ -21,16 +22,16 @@ func TestReportMutatorIngestionRequest(t *testing.T) {
 		expectedRowLength                = 1
 	)
 
-	r, err := NewStatsReporter()
+	r, err := metrics.NewStatsReporter()
 	if err != nil {
 		t.Errorf("newStatsReporter() error %v", err)
 	}
 
-	err = r.ReportMutatorIngestionRequest(MutatorStatusActive, expectedDurationValueMin)
+	err = ReportMutatorIngestionRequest(r, MutatorStatusActive, expectedDurationValueMin)
 	if err != nil {
 		t.Errorf("ReportRequest error %v", err)
 	}
-	err = r.ReportMutatorIngestionRequest(MutatorStatusActive, expectedDurationValueMax)
+	err = ReportMutatorIngestionRequest(r, MutatorStatusActive, expectedDurationValueMax)
 	if err != nil {
 		t.Errorf("ReportRequest error %v", err)
 	}
@@ -87,7 +88,7 @@ func verifyTags(t *testing.T, expected map[string]string, actual []tag.Tag) {
 }
 
 func TestReportMutatorsStatus(t *testing.T) {
-	r, err := NewStatsReporter()
+	r, err := metrics.NewStatsReporter()
 	if err != nil {
 		t.Errorf("newStatsReporter() error %v", err)
 	}
@@ -96,20 +97,20 @@ func TestReportMutatorsStatus(t *testing.T) {
 	// to date version of the data.
 
 	// 4 active, 4 error
-	err = r.ReportMutatorsStatus(MutatorStatusActive, 4)
+	err = ReportMutatorsStatus(r, MutatorStatusActive, 4)
 	if err != nil {
 		t.Errorf("reportMutatorsStatus error: %v", err)
 	}
-	err = r.ReportMutatorsStatus(MutatorStatusError, 4)
+	err = ReportMutatorsStatus(r, MutatorStatusError, 4)
 	if err != nil {
 		t.Errorf("reportMutatorsStatus error: %v", err)
 	}
 	// 5 active, 3 error
-	err = r.ReportMutatorsStatus(MutatorStatusActive, 5)
+	err = ReportMutatorsStatus(r, MutatorStatusActive, 5)
 	if err != nil {
 		t.Errorf("reportMutatorsStatus error: %v", err)
 	}
-	err = r.ReportMutatorsStatus(MutatorStatusError, 3)
+	err = ReportMutatorsStatus(r, MutatorStatusError, 3)
 	if err != nil {
 		t.Errorf("reportMutatorsStatus error: %v", err)
 	}
@@ -150,7 +151,7 @@ func verifyLastValueRow(t *testing.T, rows []*view.Row, tag MutatorIngestionStat
 }
 
 func TestReportIterationConvergence(t *testing.T) {
-	r, err := NewStatsReporter()
+	r, err := metrics.NewStatsReporter()
 	if err != nil {
 		t.Errorf("newStatsReporter() error %v", err)
 	}
@@ -162,15 +163,15 @@ func TestReportIterationConvergence(t *testing.T) {
 		failureMin = failureMax
 	)
 
-	err = r.ReportIterationConvergence(SystemConvergenceTrue, successMax)
+	err = ReportIterationConvergence(r, SystemConvergenceTrue, successMax)
 	if err != nil {
 		t.Errorf("reportIterationConvergence error: %v", err)
 	}
-	err = r.ReportIterationConvergence(SystemConvergenceFalse, failureMax)
+	err = ReportIterationConvergence(r, SystemConvergenceFalse, failureMax)
 	if err != nil {
 		t.Errorf("reportIterationConvergence error: %v", err)
 	}
-	err = r.ReportIterationConvergence(SystemConvergenceTrue, successMin)
+	err = ReportIterationConvergence(r, SystemConvergenceTrue, successMin)
 	if err != nil {
 		t.Errorf("reportIterationConvergence error: %v", err)
 	}

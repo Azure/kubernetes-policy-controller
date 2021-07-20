@@ -3,22 +3,21 @@ package mutation
 import (
 	"sync"
 
-	"github.com/open-policy-agent/gatekeeper/pkg/mutation/reporter"
 	"github.com/open-policy-agent/gatekeeper/pkg/mutation/types"
 )
 
 type Cache struct {
-	cache map[types.ID]reporter.MutatorIngestionStatus
+	cache map[types.ID]MutatorIngestionStatus
 	mux   sync.RWMutex
 }
 
 func NewMutationCache() *Cache {
 	return &Cache{
-		cache: make(map[types.ID]reporter.MutatorIngestionStatus),
+		cache: make(map[types.ID]MutatorIngestionStatus),
 	}
 }
 
-func (c *Cache) Upsert(mID types.ID, status reporter.MutatorIngestionStatus) {
+func (c *Cache) Upsert(mID types.ID, status MutatorIngestionStatus) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
@@ -32,11 +31,11 @@ func (c *Cache) Remove(mID types.ID) {
 	delete(c.cache, mID)
 }
 
-func (c *Cache) Tally() map[reporter.MutatorIngestionStatus]int {
+func (c *Cache) Tally() map[MutatorIngestionStatus]int {
 	c.mux.RLock()
 	defer c.mux.RUnlock()
 
-	statusTally := make(map[reporter.MutatorIngestionStatus]int)
+	statusTally := make(map[MutatorIngestionStatus]int)
 	for _, status := range c.cache {
 		statusTally[status]++
 	}

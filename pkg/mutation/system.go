@@ -9,7 +9,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/open-policy-agent/gatekeeper/pkg/logging"
-	"github.com/open-policy-agent/gatekeeper/pkg/mutation/reporter"
+	"github.com/open-policy-agent/gatekeeper/pkg/metrics"
 	"github.com/open-policy-agent/gatekeeper/pkg/mutation/schema"
 	"github.com/open-policy-agent/gatekeeper/pkg/mutation/types"
 	"github.com/pkg/errors"
@@ -23,12 +23,12 @@ type System struct {
 	orderedMutators []types.Mutator
 	mutatorsMap     map[types.ID]types.Mutator
 	mux             sync.RWMutex
-	reporter        *reporter.Reporter
+	reporter        *metrics.Reporter
 }
 
 // NewSystem initializes an empty mutation system.
 func NewSystem() (*System, error) {
-	reporter, err := reporter.NewStatsReporter()
+	reporter, err := metrics.NewStatsReporter()
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to initialize stats reporter for mutation system")
 	}
@@ -101,13 +101,13 @@ func (s *System) Mutate(obj *unstructured.Unstructured, ns *corev1.Namespace) (b
 	}
 
 	iterationsComplete := 0
-	convergence := reporter.SystemConvergenceFalse
+	convergence := SystemConvergenceFalse
 	defer func() {
 		if s.reporter == nil {
 			return
 		}
 
-		err := s.reporter.ReportIterationConvergence(convergence, iterationsComplete)
+		err := ReportIterationConvergence(s.reporter, convergence, iterationsComplete)
 		if err != nil {
 			log.Error(err, "failed to report mutator ingestion request")
 		}
@@ -141,7 +141,7 @@ func (s *System) Mutate(obj *unstructured.Unstructured, ns *corev1.Namespace) (b
 		if cmp.Equal(old, obj) {
 			if i == 0 {
 				// JULIAN - Is this right?  I believe that a system that doesn't do any mutations is converging.
-				convergence = reporter.SystemConvergenceTrue
+				convergence = SystemConvergenceTrue
 				return false, nil
 			}
 			if cmp.Equal(original, obj) {
@@ -165,7 +165,7 @@ func (s *System) Mutate(obj *unstructured.Unstructured, ns *corev1.Namespace) (b
 				}
 			}
 
-			convergence = reporter.SystemConvergenceTrue
+			convergence = SystemConvergenceTrue
 			return true, nil
 		}
 		if *MutationLoggingEnabled || *MutationAnnotationsEnabled {

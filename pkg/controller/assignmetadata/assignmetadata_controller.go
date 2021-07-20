@@ -26,6 +26,7 @@ import (
 	statusv1beta1 "github.com/open-policy-agent/gatekeeper/apis/status/v1beta1"
 	"github.com/open-policy-agent/gatekeeper/pkg/controller/mutatorstatus"
 	"github.com/open-policy-agent/gatekeeper/pkg/logging"
+	"github.com/open-policy-agent/gatekeeper/pkg/metrics"
 	"github.com/open-policy-agent/gatekeeper/pkg/mutation"
 	"github.com/open-policy-agent/gatekeeper/pkg/mutation/mutators"
 	mutationReporter "github.com/open-policy-agent/gatekeeper/pkg/mutation/reporter"
@@ -86,6 +87,8 @@ func (a *Adder) InjectGetPod(getPod func() (*corev1.Pod, error)) {
 func (a *Adder) InjectMutationSystem(mutationSystem *mutation.System) {
 	a.MutationSystem = mutationSystem
 }
+
+func (a *Adder) InjectMetricsReporter(metricsReporter *metrics.Reporter) {}
 
 // newReconciler returns a new reconcile.Reconciler.
 func newReconciler(mgr manager.Manager, mutationSystem *mutation.System, tracker *readiness.Tracker, getPod func() (*corev1.Pod, error)) *Reconciler {

@@ -1,4 +1,4 @@
-package reporter
+package mutation
 
 import (
 	"context"
@@ -61,67 +61,51 @@ func init() {
 	}
 }
 
-type Reporter struct {
-	ctx context.Context
-}
-
 // ReportMutatorIngestionRequest reports both the action of a mutator ingestion and the time
 // required for this request to complete.  The outcome of the ingestion attempt is recorded via the
 // status argument.
-func (r *Reporter) ReportMutatorIngestionRequest(ms MutatorIngestionStatus, d time.Duration) error {
+func ReportMutatorIngestionRequest(r *metrics.Reporter, ms MutatorIngestionStatus, d time.Duration) error {
 	ctx, err := tag.New(
-		r.ctx,
+		r.Ctx,
 		tag.Insert(mutatorStatusKey, string(ms)),
 	)
 	if err != nil {
 		return err
 	}
 
-	return r.report(ctx, responseTimeInSecM.M(d.Seconds()))
+	return report(ctx, responseTimeInSecM.M(d.Seconds()))
 }
 
 // ReportMutatorsStatus reports the number of mutators of a specific status that are present in the
 // mutation System.
-func (r *Reporter) ReportMutatorsStatus(ms MutatorIngestionStatus, n int) error {
+func ReportMutatorsStatus(r *metrics.Reporter, ms MutatorIngestionStatus, n int) error {
 	ctx, err := tag.New(
-		r.ctx,
+		r.Ctx,
 		tag.Insert(mutatorStatusKey, string(ms)),
 	)
 	if err != nil {
 		return err
 	}
 
-	return r.report(ctx, mutatorsM.M(int64(n)))
+	return report(ctx, mutatorsM.M(int64(n)))
 }
 
 // ReportIterationConvergence reports the success or failure of the mutation system to converge.
 // It also records the number of system iterations that were required to reach this end.
-func (r *Reporter) ReportIterationConvergence(scs SystemConvergenceStatus, iterations int) error {
+func ReportIterationConvergence(r *metrics.Reporter, scs SystemConvergenceStatus, iterations int) error {
 	ctx, err := tag.New(
-		r.ctx,
+		r.Ctx,
 		tag.Insert(systemConvergenceKey, string(scs)),
 	)
 	if err != nil {
 		return err
 	}
 
-	return r.report(ctx, systemIterationsM.M(int64(iterations)))
+	return report(ctx, systemIterationsM.M(int64(iterations)))
 }
 
-func (r *Reporter) report(ctx context.Context, m stats.Measurement) error {
+func report(ctx context.Context, m stats.Measurement) error {
 	return metrics.Record(ctx, m)
-}
-
-// NewStatsReporter creaters a reporter for mutation metrics.
-func NewStatsReporter() (*Reporter, error) {
-	ctx, err := tag.New(
-		context.Background(),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Reporter{ctx: ctx}, nil
 }
 
 func register() error {

@@ -26,6 +26,7 @@ import (
 	statusv1beta1 "github.com/open-policy-agent/gatekeeper/apis/status/v1beta1"
 	"github.com/open-policy-agent/gatekeeper/pkg/controller/mutatorstatus"
 	"github.com/open-policy-agent/gatekeeper/pkg/logging"
+	"github.com/open-policy-agent/gatekeeper/pkg/metrics"
 	"github.com/open-policy-agent/gatekeeper/pkg/mutation"
 	"github.com/open-policy-agent/gatekeeper/pkg/mutation/mutators"
 	mutationReporter "github.com/open-policy-agent/gatekeeper/pkg/mutation/reporter"
@@ -57,15 +58,16 @@ var gvkAssign = schema.GroupVersionKind{
 }
 
 type Adder struct {
-	MutationSystem *mutation.System
-	Tracker        *readiness.Tracker
-	GetPod         func() (*corev1.Pod, error)
+	MutationSystem  *mutation.System
+	Tracker         *readiness.Tracker
+	GetPod          func() (*corev1.Pod, error)
+	MetricsReporter *metrics.Reporter
 }
 
 // Add creates a new Assign Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func (a *Adder) Add(mgr manager.Manager) error {
-	r := newReconciler(mgr, a.MutationSystem, a.Tracker, a.GetPod)
+	r := newReconciler(mgr, a.MutationSystem, a.Tracker, a.GetPod, a.MetricsReporter)
 	return add(mgr, r)
 }
 
@@ -87,20 +89,17 @@ func (a *Adder) InjectMutationSystem(mutationSystem *mutation.System) {
 	a.MutationSystem = mutationSystem
 }
 
-// newReconciler returns a new reconcile.Reconciler.
-func newReconciler(mgr manager.Manager, mutationSystem *mutation.System, tracker *readiness.Tracker, getPod func() (*corev1.Pod, error)) *Reconciler {
-	rep, err := mutationReporter.NewStatsReporter()
-	if err != nil {
-		log.Error(err, "Failed to create mutation stats reporter")
-	}
+func (a *Adder) InjectMetricsReporter(metricsReporter *metrics.Reporter) {}
 
+// newReconciler returns a new reconcile.Reconciler.
+func newReconciler(mgr manager.Manager, mutationSystem *mutation.System, tracker *readiness.Tracker, getPod func() (*corev1.Pod, error), metricsReporter *metrics.Reporter) *Reconciler {
 	r := &Reconciler{
 		system:   mutationSystem,
 		Client:   mgr.GetClient(),
 		tracker:  tracker,
 		getPod:   getPod,
 		scheme:   mgr.GetScheme(),
-		reporter: rep,
+		reporter: metricsReporter,
 		cache:    mutation.NewMutationCache(),
 	}
 	if getPod == nil {
@@ -146,7 +145,7 @@ type Reconciler struct {
 	tracker  *readiness.Tracker
 	getPod   func() (*corev1.Pod, error)
 	scheme   *runtime.Scheme
-	reporter *mutationReporter.Reporter
+	reporter *metrics.Reporter
 	cache    *mutation.Cache
 }
 

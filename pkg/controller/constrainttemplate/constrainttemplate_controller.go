@@ -109,6 +109,8 @@ func (a *Adder) InjectGetPod(getPod func() (*corev1.Pod, error)) {
 
 func (a *Adder) InjectMutationSystem(mutationSystem *mutation.System) {}
 
+func (a *Adder) InjectMetricsReporter(metricsReporter *metrics.Reporter) {}
+
 // newReconciler returns a new reconcile.Reconciler
 // cstrEvents is the channel from which constraint controller will receive the events
 // regEvents is the channel registered by Registrar to put the events in

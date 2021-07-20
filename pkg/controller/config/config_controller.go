@@ -94,6 +94,8 @@ func (a *Adder) InjectProcessExcluder(m *process.Excluder) {
 
 func (a *Adder) InjectMutationSystem(mutationSystem *mutation.System) {}
 
+func (a *Adder) InjectMetricsReporter(metricsReporter *metrics.Reporter) {}
+
 // newReconciler returns a new reconcile.Reconciler
 // events is the channel from which sync controller will receive the events
 // regEvents is the channel registered by Registrar to put the events in

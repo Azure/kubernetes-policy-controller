@@ -244,9 +244,15 @@ func setupControllers(mgr ctrl.Manager, sw *watch.ControllerSwitch, tracker *rea
 		setupLog.Error(err, "unable to set up OPA backend")
 		os.Exit(1)
 	}
+
 	client, err := backend.NewClient(opa.Targets(&target.K8sValidationTarget{}))
 	if err != nil {
 		setupLog.Error(err, "unable to set up OPA client")
+	}
+
+	reporter, err := metrics.NewStatsReporter()
+	if err != nil {
+		setupLog.Error(err, "unable to initialize metrics reporter")
 	}
 
 	mutationSystem, err := mutation.NewSystem()
@@ -262,6 +268,7 @@ func setupControllers(mgr ctrl.Manager, sw *watch.ControllerSwitch, tracker *rea
 		setupLog.Error(err, "fetching dynamic cache")
 		os.Exit(1)
 	}
+
 	wm, err := watch.New(dc)
 	if err != nil {
 		setupLog.Error(err, "unable to create watch manager")
@@ -284,6 +291,7 @@ func setupControllers(mgr ctrl.Manager, sw *watch.ControllerSwitch, tracker *rea
 		Tracker:          tracker,
 		ProcessExcluder:  processExcluder,
 		MutationSystem:   mutationSystem,
+		MetricsReporter:  reporter,
 	}
 	if err := controller.AddToManager(mgr, opts); err != nil {
 		setupLog.Error(err, "unable to register controllers with the manager")

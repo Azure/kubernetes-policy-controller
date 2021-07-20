@@ -26,19 +26,18 @@ type System struct {
 	reporter        *metrics.Reporter
 }
 
-// NewSystem initializes an empty mutation system.
-func NewSystem() (*System, error) {
-	reporter, err := metrics.NewStatsReporter()
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to initialize stats reporter for mutation system")
-	}
+type SystemReporter interface {
+	ReportIterationConvergence(r *metrics.Reporter, scs SystemConvergenceStatus, iterations int) error
+}
 
+// NewSystem initializes an empty mutation system.
+func NewSystem(reporter *metrics.Reporter) *System {
 	return &System{
 		schemaDB:        *schema.New(),
 		orderedMutators: make([]types.Mutator, 0),
 		mutatorsMap:     make(map[types.ID]types.Mutator),
 		reporter:        reporter,
-	}, nil
+	}
 }
 
 // Upsert updates or insert the given object, and returns

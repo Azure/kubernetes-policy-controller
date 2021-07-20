@@ -30,6 +30,7 @@ import (
 	podstatus "github.com/open-policy-agent/gatekeeper/apis/status/v1beta1"
 	"github.com/open-policy-agent/gatekeeper/pkg/controller"
 	"github.com/open-policy-agent/gatekeeper/pkg/controller/config/process"
+	g8rmetrics "github.com/open-policy-agent/gatekeeper/pkg/metrics"
 	"github.com/open-policy-agent/gatekeeper/pkg/mutation"
 	mutationtypes "github.com/open-policy-agent/gatekeeper/pkg/mutation/types"
 	"github.com/open-policy-agent/gatekeeper/pkg/readiness"
@@ -148,10 +149,13 @@ func Test_AssignMetadata(t *testing.T) {
 	// Wire up the rest.
 	mgr, wm := setupManager(t)
 	opaClient := setupOpa(t)
-	mutationSystem, err := mutation.NewSystem()
+
+	rep, err := g8rmetrics.NewStatsReporter()
 	if err != nil {
-		t.Error(errors.Wrapf(err, "Failed to instantiate mutation system"))
+		t.Error(errors.Wrapf(err, "Failed to instantiate stats reporter"))
 	}
+
+	mutationSystem := mutation.NewSystem(rep)
 
 	if err := setupController(mgr, wm, opaClient, mutationSystem); err != nil {
 		t.Fatalf("setupControllers: %v", err)
@@ -199,10 +203,13 @@ func Test_Assign(t *testing.T) {
 	// Wire up the rest.
 	mgr, wm := setupManager(t)
 	opaClient := setupOpa(t)
-	mutationSystem, err := mutation.NewSystem()
+
+	rep, err := g8rmetrics.NewStatsReporter()
 	if err != nil {
-		t.Error(errors.Wrapf(err, "Failed to initialize mutation system"))
+		t.Error(errors.Wrapf(err, "Failed to instantiate stats reporter"))
 	}
+	mutationSystem := mutation.NewSystem(rep)
+
 	if err := setupController(mgr, wm, opaClient, mutationSystem); err != nil {
 		t.Fatalf("setupControllers: %v", err)
 	}

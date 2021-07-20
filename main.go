@@ -255,7 +255,7 @@ func setupControllers(mgr ctrl.Manager, sw *watch.ControllerSwitch, tracker *rea
 		setupLog.Error(err, "unable to initialize metrics reporter")
 	}
 
-	mutationSystem, err := mutation.NewSystem()
+	mutationSystem := mutation.NewSystem(reporter)
 	if err != nil {
 		setupLog.Error(err, "unable to create mutation system")
 		os.Exit(1)

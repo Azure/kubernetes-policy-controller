@@ -96,15 +96,12 @@ func TestReconcile(t *testing.T) {
 	// force mutation to be enabled
 	*mutation.MutationEnabled = true
 
-	mSys, err := mutation.NewSystem()
-	if err != nil {
-		t.Error(errors.Wrapf(err, "Failed to instantiate mutation system"))
-	}
-
 	rep, err := g8rmetrics.NewStatsReporter()
 	if err != nil {
 		t.Error(errors.Wrapf(err, "Failed to instantiate stats reporter"))
 	}
+
+	mSys := mutation.NewSystem(rep)
 
 	tracker, err := readiness.SetupTracker(mgr, true)
 	g.Expect(err).NotTo(gomega.HaveOccurred())

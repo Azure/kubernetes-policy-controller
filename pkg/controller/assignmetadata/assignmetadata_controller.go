@@ -29,7 +29,6 @@ import (
 	"github.com/open-policy-agent/gatekeeper/pkg/metrics"
 	"github.com/open-policy-agent/gatekeeper/pkg/mutation"
 	"github.com/open-policy-agent/gatekeeper/pkg/mutation/mutators"
-	mutationReporter "github.com/open-policy-agent/gatekeeper/pkg/mutation/reporter"
 	"github.com/open-policy-agent/gatekeeper/pkg/mutation/types"
 	"github.com/open-policy-agent/gatekeeper/pkg/readiness"
 	"github.com/open-policy-agent/gatekeeper/pkg/util"
@@ -58,15 +57,16 @@ var gvkAssignMetadata = schema.GroupVersionKind{
 }
 
 type Adder struct {
-	MutationSystem *mutation.System
-	Tracker        *readiness.Tracker
-	GetPod         func() (*corev1.Pod, error)
+	MutationSystem  *mutation.System
+	Tracker         *readiness.Tracker
+	GetPod          func() (*corev1.Pod, error)
+	MetricsReporter *metrics.Reporter
 }
 
 // Add creates a new AssignMetadata Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func (a *Adder) Add(mgr manager.Manager) error {
-	r := newReconciler(mgr, a.MutationSystem, a.Tracker, a.GetPod)
+	r := newReconciler(mgr, a.MutationSystem, a.Tracker, a.GetPod, a.MetricsReporter)
 	return add(mgr, r)
 }
 
@@ -88,22 +88,19 @@ func (a *Adder) InjectMutationSystem(mutationSystem *mutation.System) {
 	a.MutationSystem = mutationSystem
 }
 
-func (a *Adder) InjectMetricsReporter(metricsReporter *metrics.Reporter) {}
+func (a *Adder) InjectMetricsReporter(metricsReporter *metrics.Reporter) {
+	a.MetricsReporter = metricsReporter
+}
 
 // newReconciler returns a new reconcile.Reconciler.
-func newReconciler(mgr manager.Manager, mutationSystem *mutation.System, tracker *readiness.Tracker, getPod func() (*corev1.Pod, error)) *Reconciler {
-	rep, err := mutationReporter.NewStatsReporter()
-	if err != nil {
-		log.Error(err, "Failed to create mutation stats reporter")
-	}
-
+func newReconciler(mgr manager.Manager, mutationSystem *mutation.System, tracker *readiness.Tracker, getPod func() (*corev1.Pod, error), metricsReporter *metrics.Reporter) *Reconciler {
 	r := &Reconciler{
 		system:   mutationSystem,
 		Client:   mgr.GetClient(),
 		tracker:  tracker,
 		getPod:   getPod,
 		scheme:   mgr.GetScheme(),
-		reporter: rep,
+		reporter: metricsReporter,
 		cache:    mutation.NewMutationCache(),
 	}
 	if getPod == nil {
@@ -149,7 +146,7 @@ type Reconciler struct {
 	tracker  *readiness.Tracker
 	getPod   func() (*corev1.Pod, error)
 	scheme   *runtime.Scheme
-	reporter *mutationReporter.Reporter
+	reporter *metrics.Reporter
 	cache    *mutation.Cache
 }
 
@@ -212,7 +209,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 	}
 
 	// Since we aren't deleting the mutator, we are either adding or updating
-	ingestionStatus := mutationReporter.MutatorStatusError
+	ingestionStatus := mutation.MutatorStatusError
 	defer func() {
 		r.cache.Upsert(mID, ingestionStatus)
 
@@ -220,12 +217,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 			return
 		}
 
-		if err := r.reporter.ReportMutatorIngestionRequest(ingestionStatus, time.Since(timeStart)); err != nil {
+		if err := mutation.ReportMutatorIngestionRequest(r.reporter, ingestionStatus, time.Since(timeStart)); err != nil {
 			log.Error(err, "failed to report mutator ingestion request")
 		}
 
 		for status, count := range r.cache.Tally() {
-			if err = r.reporter.ReportMutatorsStatus(status, count); err != nil {
+			if err = mutation.ReportMutatorsStatus(r.reporter, status, count); err != nil {
 				log.Error(err, "failed to report mutator status request")
 			}
 		}
@@ -269,7 +266,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 		return reconcile.Result{}, err
 	}
 
-	ingestionStatus = mutationReporter.MutatorStatusActive
+	ingestionStatus = mutation.MutatorStatusActive
 	return reconcile.Result{}, nil
 }
 

@@ -25,6 +25,7 @@ import (
 	mutationsv1alpha1 "github.com/open-policy-agent/gatekeeper/apis/mutations/v1alpha1"
 	podstatus "github.com/open-policy-agent/gatekeeper/apis/status/v1beta1"
 	"github.com/open-policy-agent/gatekeeper/pkg/controller/mutatorstatus"
+	g8rmetrics "github.com/open-policy-agent/gatekeeper/pkg/metrics"
 	"github.com/open-policy-agent/gatekeeper/pkg/mutation"
 	"github.com/open-policy-agent/gatekeeper/pkg/readiness"
 	"github.com/pkg/errors"
@@ -97,13 +98,19 @@ func TestReconcile(t *testing.T) {
 	if err != nil {
 		t.Error(errors.Wrapf(err, "Failed to instantiate mutation system"))
 	}
+
+	rep, err := g8rmetrics.NewStatsReporter()
+	if err != nil {
+		t.Error(errors.Wrapf(err, "Failed to instantiate stats reporter"))
+	}
+
 	tracker, err := readiness.SetupTracker(mgr, true)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	os.Setenv("POD_NAME", "no-pod")
 	podstatus.DisablePodOwnership()
 	pod := &corev1.Pod{}
 	pod.Name = "no-pod"
-	rec := newReconciler(mgr, mSys, tracker, func() (*corev1.Pod, error) { return pod, nil })
+	rec := newReconciler(mgr, mSys, tracker, func() (*corev1.Pod, error) { return pod, nil }, rep)
 
 	recFn, _ := SetupTestReconcile(rec)
 	g.Expect(add(mgr, recFn)).NotTo(gomega.HaveOccurred())

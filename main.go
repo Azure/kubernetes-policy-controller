@@ -250,7 +250,7 @@ func setupControllers(mgr ctrl.Manager, sw *watch.ControllerSwitch, tracker *rea
 		setupLog.Error(err, "unable to set up OPA client")
 	}
 
-	reporter, err := metrics.NewStatsReporter()
+	reporter, err := metrics.NewMetricsReporter()
 	if err != nil {
 		setupLog.Error(err, "unable to initialize metrics reporter")
 	}

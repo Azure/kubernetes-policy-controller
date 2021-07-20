@@ -94,7 +94,7 @@ func TestReconcile(t *testing.T) {
 	// force mutation to be enabled
 	*mutation.MutationEnabled = true
 
-	rep, err := g8rmetrics.NewStatsReporter()
+	rep, err := g8rmetrics.NewMetricsReporter()
 	if err != nil {
 		t.Error(errors.Wrapf(err, "Failed to instantiate stats reporter"))
 	}

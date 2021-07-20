@@ -22,7 +22,7 @@ func TestReportMutatorIngestionRequest(t *testing.T) {
 		expectedRowLength                = 1
 	)
 
-	r, err := metrics.NewStatsReporter()
+	r, err := metrics.NewMetricsReporter()
 	if err != nil {
 		t.Errorf("newStatsReporter() error %v", err)
 	}
@@ -88,7 +88,7 @@ func verifyTags(t *testing.T, expected map[string]string, actual []tag.Tag) {
 }
 
 func TestReportMutatorsStatus(t *testing.T) {
-	r, err := metrics.NewStatsReporter()
+	r, err := metrics.NewMetricsReporter()
 	if err != nil {
 		t.Errorf("newStatsReporter() error %v", err)
 	}
@@ -151,7 +151,7 @@ func verifyLastValueRow(t *testing.T, rows []*view.Row, tag MutatorIngestionStat
 }
 
 func TestReportIterationConvergence(t *testing.T) {
-	r, err := metrics.NewStatsReporter()
+	r, err := metrics.NewMetricsReporter()
 	if err != nil {
 		t.Errorf("newStatsReporter() error %v", err)
 	}

@@ -150,7 +150,7 @@ func Test_AssignMetadata(t *testing.T) {
 	mgr, wm := setupManager(t)
 	opaClient := setupOpa(t)
 
-	rep, err := g8rmetrics.NewStatsReporter()
+	rep, err := g8rmetrics.NewMetricsReporter()
 	if err != nil {
 		t.Error(errors.Wrapf(err, "Failed to instantiate stats reporter"))
 	}
@@ -204,7 +204,7 @@ func Test_Assign(t *testing.T) {
 	mgr, wm := setupManager(t)
 	opaClient := setupOpa(t)
 
-	rep, err := g8rmetrics.NewStatsReporter()
+	rep, err := g8rmetrics.NewMetricsReporter()
 	if err != nil {
 		t.Error(errors.Wrapf(err, "Failed to instantiate stats reporter"))
 	}

@@ -2,6 +2,7 @@ package gktest
 
 import (
 	"context"
+	"errors"
 	"io/fs"
 	"testing"
 	"testing/fstest"
@@ -119,7 +120,7 @@ metadata:
 `
 )
 
-func TestSuite_Run(t *testing.T) {
+func TestRunner_Run(t *testing.T) {
 	testCases := []struct {
 		name  string
 		suite Suite
@@ -266,6 +267,7 @@ func TestSuite_Run(t *testing.T) {
 				Tests: []Test{{
 					Template:   "template.yaml",
 					Constraint: "constraint.yaml",
+					Cases:      []Case{{}},
 				}},
 			},
 			f: fstest.MapFS{
@@ -277,7 +279,9 @@ func TestSuite_Run(t *testing.T) {
 				},
 			},
 			want: SuiteResult{
-				TestResults: []TestResult{{}},
+				TestResults: []TestResult{{
+					CaseResults: []CaseResult{{}},
+				}},
 			},
 		},
 		{
@@ -370,17 +374,41 @@ func TestSuite_Run(t *testing.T) {
 	for _, tc := range testCases {
 		ctx := context.Background()
 
-		c, err := NewOPAClient()
-		if err != nil {
-			t.Fatal(err)
+		runner := Runner{
+			FS:        tc.f,
+			NewClient: NewOPAClient,
 		}
 
 		t.Run(tc.name, func(t *testing.T) {
-			got := tc.suite.Run(ctx, c, tc.f, Filter{})
+			got := runner.Run(ctx, Filter{}, &tc.suite)
 
 			if diff := cmp.Diff(tc.want, got, cmpopts.EquateErrors(), cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf(diff)
 			}
 		})
+	}
+}
+
+func TestRunner_Run_ClientError(t *testing.T) {
+	want := SuiteResult{
+		TestResults: []TestResult{{Error: ErrCreatingClient}},
+	}
+
+	runner := Runner{
+		FS: fstest.MapFS{},
+		NewClient: func() (Client, error) {
+			return nil, errors.New("error")
+		},
+	}
+
+	ctx := context.Background()
+
+	suite := &Suite{
+		Tests: []Test{{}},
+	}
+	got := runner.Run(ctx, Filter{}, suite)
+
+	if diff := cmp.Diff(want, got, cmpopts.EquateErrors(), cmpopts.EquateEmpty()); diff != "" {
+		t.Error(diff)
 	}
 }

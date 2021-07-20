@@ -18,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	runtimeschema "k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -28,9 +29,11 @@ var log = logf.Log.WithName("mutation").WithValues(logging.Process, "mutation")
 // AssignMutator is a mutator object built out of a
 // Assign instance.
 type AssignMutator struct {
-	id     types.ID
-	assign *mutationsv1alpha1.Assign
-	path   parser.Path
+	id          types.ID
+	assign      *mutationsv1alpha1.Assign
+	assignValue interface{}
+
+	path parser.Path
 
 	// bindings are the set of GVKs this Mutator applies to.
 	bindings  []runtimeschema.GroupVersionKind
@@ -98,7 +101,7 @@ func (m *AssignMutator) SchemaBindings() []runtimeschema.GroupVersionKind {
 }
 
 func (m *AssignMutator) Value() (interface{}, error) {
-	return types.UnmarshalValue(m.assign.Spec.Parameters.Assign.Raw)
+	return runtime.DeepCopyJSONValue(m.assignValue), nil
 }
 
 func (m *AssignMutator) HasDiff(mutator types.Mutator) bool {
@@ -131,13 +134,15 @@ func (m *AssignMutator) Path() parser.Path {
 
 func (m *AssignMutator) DeepCopy() types.Mutator {
 	res := &AssignMutator{
-		id:     m.id,
-		assign: m.assign.DeepCopy(),
+		id:          m.id,
+		assign:      m.assign.DeepCopy(),
+		assignValue: runtime.DeepCopyJSONValue(m.assignValue),
 		path: parser.Path{
 			Nodes: make([]parser.Node, len(m.path.Nodes)),
 		},
 		bindings: make([]runtimeschema.GroupVersionKind, len(m.bindings)),
 	}
+
 	copy(res.path.Nodes, m.path.Nodes)
 	copy(res.bindings, m.bindings)
 	res.tester = m.tester.DeepCopy()
@@ -208,12 +213,13 @@ func MutatorForAssign(assign *mutationsv1alpha1.Assign) (*AssignMutator, error) 
 	}
 
 	return &AssignMutator{
-		id:        id,
-		assign:    assign.DeepCopy(),
-		bindings:  gvks,
-		path:      path,
-		tester:    tester,
-		valueTest: &valueTests,
+		id:          id,
+		assign:      assign.DeepCopy(),
+		assignValue: value,
+		bindings:    gvks,
+		path:        path,
+		tester:      tester,
+		valueTest:   &valueTests,
 	}, nil
 }
 

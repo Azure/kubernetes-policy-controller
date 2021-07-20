@@ -42,9 +42,12 @@ var (
 // AssignMeta instance.
 type AssignMetadataMutator struct {
 	id             types.ID
-	tester         *tester.Tester
 	assignMetadata *mutationsv1alpha1.AssignMetadata
-	path           parser.Path
+	assignValue    string
+
+	path parser.Path
+
+	tester *tester.Tester
 }
 
 // assignMetadataMutator implements mutator.
@@ -60,6 +63,10 @@ func (m *AssignMetadataMutator) Matches(obj client.Object, ns *corev1.Namespace)
 }
 
 func (m *AssignMetadataMutator) Mutate(obj *unstructured.Unstructured) (bool, error) {
+	// Note: Performance here can be improved by ~3x by writing a specialized
+	// function instead of using a generic function. AssignMetadata only ever
+	// mutates metadata.annotations or metadata.labels, and we spend ~70% of
+	// compute covering cases that aren't valid for this Mutator.
 	return core.Mutate(m, m.tester, nil, obj)
 }
 
@@ -91,24 +98,16 @@ func (m *AssignMetadataMutator) HasDiff(mutator types.Mutator) bool {
 func (m *AssignMetadataMutator) DeepCopy() types.Mutator {
 	res := &AssignMetadataMutator{
 		id:             m.id,
-		tester:         m.tester.DeepCopy(),
 		assignMetadata: m.assignMetadata.DeepCopy(),
+		assignValue:    m.assignValue,
 		path:           m.path.DeepCopy(),
+		tester:         m.tester.DeepCopy(),
 	}
 	return res
 }
 
 func (m *AssignMetadataMutator) Value() (interface{}, error) {
-	value, err := types.UnmarshalValue(m.assignMetadata.Spec.Parameters.Assign.Raw)
-	if err != nil {
-		return nil, err
-	}
-	switch t := value.(type) {
-	case string:
-		return value, nil
-	default:
-		return nil, fmt.Errorf("incorrect value for AssignMetadataMutator. Value must be a string. Value: %s Type: %s", value, t)
-	}
+	return m.assignValue, nil
 }
 
 func (m *AssignMetadataMutator) String() string {
@@ -134,7 +133,8 @@ func MutatorForAssignMetadata(assignMeta *mutationsv1alpha1.AssignMetadata) (*As
 	if !ok {
 		return nil, errors.New("spec.parameters.assign must have a string value field for AssignMetadata " + assignMeta.GetName())
 	}
-	if _, ok := value.(string); !ok {
+	valueString, isString := value.(string)
+	if !isString {
 		return nil, errors.New("spec.parameters.assign.value field must be a string for AssignMetadata " + assignMeta.GetName())
 	}
 
@@ -147,9 +147,10 @@ func MutatorForAssignMetadata(assignMeta *mutationsv1alpha1.AssignMetadata) (*As
 
 	return &AssignMetadataMutator{
 		id:             types.MakeID(assignMeta),
-		tester:         t,
 		assignMetadata: assignMeta.DeepCopy(),
+		assignValue:    valueString,
 		path:           path,
+		tester:         t,
 	}, nil
 }
 

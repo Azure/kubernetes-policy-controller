@@ -17,17 +17,17 @@ const (
 	examples = `  # Run all tests in label-tests.yaml
   gator test label-tests.yaml
 
-  # Run all suites whose names contain "forbid-labels".
+  # Run all tests whose names contain "forbid-labels".
   gator test tests/... --run forbid-labels//
 
-  # Run all tests whose names contain "nginx-deployment".
+  # Run all cases whose names contain "nginx-deployment".
   gator test tests/... --run //nginx-deployment
 
-  # Run all tests whose names exactly match "nginx-deployment".
+  # Run all cases whose names exactly match "nginx-deployment".
   gator test tests/... --run '//^nginx-deployment$'
 
-  # Run all tests that are either named "forbid-labels" or are
-  # in suites named "forbid-labels".
+  # Run all cases that are either named "forbid-labels" or are
+  # in tests named "forbid-labels".
   gator test tests/... --run '^forbid-labels$'`
 )
 
@@ -87,15 +87,16 @@ func runE(cmd *cobra.Command, args []string) error {
 
 func runSuites(ctx context.Context, fileSystem fs.FS, suites []gktest.Suite, filter gktest.Filter) error {
 	isFailure := false
+
+	runner := gktest.Runner{
+		FS:        fileSystem,
+		NewClient: gktest.NewOPAClient,
+	}
+
 	for i := range suites {
 		s := &suites[i]
 
-		c, err := gktest.NewOPAClient()
-		if err != nil {
-			return err
-		}
-
-		suiteResult := s.Run(ctx, c, fileSystem, filter)
+		suiteResult := runner.Run(ctx, filter, s)
 		for _, testResult := range suiteResult.TestResults {
 			if testResult.Error != nil {
 				isFailure = true

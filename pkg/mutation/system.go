@@ -24,6 +24,7 @@ type System struct {
 	mutatorsMap     map[types.ID]types.Mutator
 	mux             sync.RWMutex
 	reporter        *metrics.Reporter
+	metricsHooks    SystemReporter
 }
 
 type SystemReporter interface {
@@ -31,12 +32,14 @@ type SystemReporter interface {
 }
 
 // NewSystem initializes an empty mutation system.
-func NewSystem(reporter *metrics.Reporter) *System {
+func NewSystem(reporter *metrics.Reporter, metricsHooks SystemReporter) *System {
+	// JULIAN - metricsHooks can be nil.  Should I throw an error for that?
 	return &System{
 		schemaDB:        *schema.New(),
 		orderedMutators: make([]types.Mutator, 0),
 		mutatorsMap:     make(map[types.ID]types.Mutator),
 		reporter:        reporter,
+		metricsHooks:    metricsHooks,
 	}
 }
 
@@ -102,11 +105,11 @@ func (s *System) Mutate(obj *unstructured.Unstructured, ns *corev1.Namespace) (b
 	iterationsComplete := 0
 	convergence := SystemConvergenceFalse
 	defer func() {
-		if s.reporter == nil {
+		if s.reporter == nil || s.metricsHooks == nil {
 			return
 		}
 
-		err := ReportIterationConvergence(s.reporter, convergence, iterationsComplete)
+		err := s.metricsHooks.ReportIterationConvergence(s.reporter, convergence, iterationsComplete)
 		if err != nil {
 			log.Error(err, "failed to report mutator ingestion request")
 		}

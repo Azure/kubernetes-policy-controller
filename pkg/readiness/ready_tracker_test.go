@@ -155,7 +155,7 @@ func Test_AssignMetadata(t *testing.T) {
 		t.Error(errors.Wrapf(err, "Failed to instantiate stats reporter"))
 	}
 
-	mutationSystem := mutation.NewSystem(rep)
+	mutationSystem := mutation.NewSystem(rep, nil)
 
 	if err := setupController(mgr, wm, opaClient, mutationSystem); err != nil {
 		t.Fatalf("setupControllers: %v", err)
@@ -208,7 +208,7 @@ func Test_Assign(t *testing.T) {
 	if err != nil {
 		t.Error(errors.Wrapf(err, "Failed to instantiate stats reporter"))
 	}
-	mutationSystem := mutation.NewSystem(rep)
+	mutationSystem := mutation.NewSystem(rep, nil)
 
 	if err := setupController(mgr, wm, opaClient, mutationSystem); err != nil {
 		t.Fatalf("setupControllers: %v", err)

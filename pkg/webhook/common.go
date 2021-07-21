@@ -93,7 +93,7 @@ func (h *webhookHandler) getConfig(ctx context.Context) (*v1alpha1.Config, error
 }
 
 // isGatekeeperResource returns true if the request relates to a gatekeeper resource.
-func (h *webhookHandler) isGatekeeperResource(ctx context.Context, req *admission.Request) bool {
+func (h *webhookHandler) isGatekeeperResource(req *admission.Request) bool {
 	if req.AdmissionRequest.Kind.Group == "templates.gatekeeper.sh" ||
 		req.AdmissionRequest.Kind.Group == "constraints.gatekeeper.sh" ||
 		req.AdmissionRequest.Kind.Group == mutationsGroup ||

@@ -35,7 +35,7 @@ const ignoreLabel = "admission.gatekeeper.sh/ignore"
 // +kubebuilder:webhook:verbs=CREATE;UPDATE,path=/v1/admitlabel,mutating=false,failurePolicy=fail,groups="",resources=namespaces,versions=*,name=check-ignore-label.gatekeeper.sh,sideEffects=None,admissionReviewVersions=v1;v1beta1,matchPolicy=Exact
 
 // AddLabelWebhook registers the label webhook server with the manager.
-func AddLabelWebhook(mgr manager.Manager, _ *opa.Client, _ *process.Excluder, mutationCache *mutation.System) error {
+func AddLabelWebhook(mgr manager.Manager, _ *opa.Client, _ *process.Excluder, _ *mutation.System) error {
 	wh := &admission.Webhook{Handler: &namespaceLabelHandler{}}
 	// TODO(https://github.com/open-policy-agent/gatekeeper/issues/661): remove log injection if the race condition in the cited bug is eliminated.
 	// Otherwise we risk having unstable logger names for the webhook.

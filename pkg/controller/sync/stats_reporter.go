@@ -58,43 +58,29 @@ func register() error {
 }
 
 type Reporter struct {
-	Ctx context.Context
 	now func() float64
 }
 
 // NewStatsReporter creates a reporter for sync metrics.
 func NewStatsReporter() (*Reporter, error) {
-	ctx, err := tag.New(
-		context.TODO(),
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &Reporter{Ctx: ctx, now: now}, nil
+	return &Reporter{now: now}, nil
 }
 
 func (r *Reporter) report(ctx context.Context, m stats.Measurement) error {
 	return metrics.Record(ctx, m)
 }
 
-func (r *Reporter) reportSyncDuration(d time.Duration) error {
-	ctx, err := tag.New(
-		r.Ctx,
-	)
-	if err != nil {
-		return err
-	}
-
+func (r *Reporter) reportSyncDuration(ctx context.Context, d time.Duration) error {
 	return r.report(ctx, syncDurationM.M(d.Seconds()))
 }
 
-func (r *Reporter) reportLastSync() error {
-	return metrics.Record(r.Ctx, lastRunSyncM.M(r.now()))
+func (r *Reporter) reportLastSync(ctx context.Context) error {
+	return metrics.Record(ctx, lastRunSyncM.M(r.now()))
 }
 
-func (r *Reporter) reportSync(t Tags, v int64) error {
+func (r *Reporter) reportSync(ctx context.Context, t Tags, v int64) error {
 	ctx, err := tag.New(
-		r.Ctx,
+		ctx,
 		tag.Insert(kindKey, string(t.Kind)),
 		tag.Insert(statusKey, string(t.Status)))
 	if err != nil {

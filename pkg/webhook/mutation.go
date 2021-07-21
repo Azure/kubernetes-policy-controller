@@ -115,14 +115,14 @@ func (h *mutationHandler) Handle(ctx context.Context, req admission.Request) adm
 		return admission.ValidationResponse(true, "Mutating only on create or update")
 	}
 
-	if h.isGatekeeperResource(ctx, &req) {
+	if h.isGatekeeperResource(&req) {
 		return admission.ValidationResponse(true, "Not mutating gatekeeper resources")
 	}
 
 	requestResponse := unknownResponse
 	defer func() {
 		if h.reporter != nil {
-			if err := h.reporter.ReportMutationRequest(requestResponse, time.Since(timeStart)); err != nil {
+			if err := h.reporter.ReportMutationRequest(ctx, requestResponse, time.Since(timeStart)); err != nil {
 				log.Error(err, "failed to report request")
 			}
 		}

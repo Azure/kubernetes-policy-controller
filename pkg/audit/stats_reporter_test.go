@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -14,11 +15,12 @@ func TestReportTotalViolations(t *testing.T) {
 		"enforcement_action": "deny",
 	}
 
+	ctx := context.Background()
 	r, err := newStatsReporter()
 	if err != nil {
 		t.Errorf("newStatsReporter() error %v", err)
 	}
-	err = r.reportTotalViolations("deny", expectedValue)
+	err = r.reportTotalViolations(ctx, "deny", expectedValue)
 	if err != nil {
 		t.Errorf("ReportTotalViolations error %v", err)
 	}
@@ -45,15 +47,16 @@ func TestReportLatency(t *testing.T) {
 	const expectedLatencyMax float64 = 500
 	const expectedRowLength = 1
 
+	ctx := context.Background()
 	r, err := newStatsReporter()
 	if err != nil {
 		t.Errorf("newStatsReporter() error %v", err)
 	}
-	err = r.reportLatency(expectedLatencyValueMin)
+	err = r.reportLatency(ctx, expectedLatencyValueMin)
 	if err != nil {
 		t.Errorf("ReportLatency error %v", err)
 	}
-	err = r.reportLatency(expectedLatencyValueMax)
+	err = r.reportLatency(ctx, expectedLatencyValueMax)
 	if err != nil {
 		t.Errorf("ReportLatency error %v", err)
 	}
@@ -92,11 +95,12 @@ func TestLastRestartCheck(t *testing.T) {
 	expectedTs := float64(expectedTime.UnixNano()) / 1e9
 	const expectedRowLength = 1
 
+	ctx := context.Background()
 	r, err := newStatsReporter()
 	if err != nil {
 		t.Errorf("newStatsReporter() error %v", err)
 	}
-	err = r.reportRunStart(expectedTime)
+	err = r.reportRunStart(ctx, expectedTime)
 	if err != nil {
 		t.Errorf("reportRunStart error %v", err)
 	}

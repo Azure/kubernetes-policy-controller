@@ -54,9 +54,9 @@ func register() error {
 	return view.Register(views...)
 }
 
-func (r *reporter) reportTotalViolations(enforcementAction util.EnforcementAction, v int64) error {
+func (r *reporter) reportTotalViolations(ctx context.Context, enforcementAction util.EnforcementAction, v int64) error {
 	ctx, err := tag.New(
-		r.ctx,
+		ctx,
 		tag.Insert(enforcementActionKey, string(enforcementAction)))
 	if err != nil {
 		return err
@@ -65,8 +65,8 @@ func (r *reporter) reportTotalViolations(enforcementAction util.EnforcementActio
 	return r.report(ctx, violationsM.M(v))
 }
 
-func (r *reporter) reportLatency(d time.Duration) error {
-	ctx, err := tag.New(r.ctx)
+func (r *reporter) reportLatency(ctx context.Context, d time.Duration) error {
+	ctx, err := tag.New(ctx)
 	if err != nil {
 		return err
 	}
@@ -74,26 +74,17 @@ func (r *reporter) reportLatency(d time.Duration) error {
 	return r.report(ctx, auditDurationM.M(d.Seconds()))
 }
 
-func (r *reporter) reportRunStart(t time.Time) error {
+func (r *reporter) reportRunStart(ctx context.Context, t time.Time) error {
 	val := float64(t.UnixNano()) / 1e9
-	return metrics.Record(r.ctx, lastRunTimeM.M(val))
+	return metrics.Record(ctx, lastRunTimeM.M(val))
 }
 
-// newStatsReporter creaters a reporter for audit metrics.
+// newStatsReporter creates a reporter for audit metrics.
 func newStatsReporter() (*reporter, error) {
-	ctx, err := tag.New(
-		context.Background(),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &reporter{ctx: ctx}, nil
+	return &reporter{}, nil
 }
 
-type reporter struct {
-	ctx context.Context
-}
+type reporter struct{}
 
 func (r *reporter) report(ctx context.Context, m stats.Measurement) error {
 	return metrics.Record(ctx, m)

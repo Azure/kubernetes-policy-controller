@@ -118,7 +118,7 @@ func TestRegistrar_AddUnknown(t *testing.T) {
 	r, err := wm.NewRegistrar("test", events)
 	g.Expect(err).NotTo(gomega.HaveOccurred(), "creating registrar")
 
-	err = r.AddWatch(schema.GroupVersionKind{
+	err = r.AddWatch(ctx, schema.GroupVersionKind{
 		Group:   "i",
 		Version: "donot",
 		Kind:    "exist",
@@ -259,7 +259,7 @@ func TestRegistrar_Reconnect(t *testing.T) {
 	err = applyCRD(ctx, g, c, gvk, crd)
 	g.Expect(err).NotTo(gomega.HaveOccurred(), "applying CRD")
 
-	err = r.AddWatch(gvk)
+	err = r.AddWatch(ctx, gvk)
 	g.Expect(err).NotTo(gomega.HaveOccurred(), "adding watch")
 
 	// Create watched resources
@@ -339,7 +339,7 @@ func Test_Registrar_Replay(t *testing.T) {
 		)
 		g.Expect(err).NotTo(gomega.HaveOccurred())
 
-		err = r.AddWatch(gvk)
+		err = r.AddWatch(ctx, gvk)
 		g.Expect(err).NotTo(gomega.HaveOccurred())
 
 		return requests

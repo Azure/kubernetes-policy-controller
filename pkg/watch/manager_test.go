@@ -172,17 +172,18 @@ func TestRegistrar_AddWatch_Idempotent(t *testing.T) {
 		return
 	}
 
+	ctx := context.Background()
 	gvk := schema.GroupVersionKind{
 		Version: "v1",
 		Kind:    "Pod",
 	}
 
 	for _, r := range []*Registrar{r1, r2} {
-		if err := r.AddWatch(gvk); err != nil {
+		if err := r.AddWatch(ctx, gvk); err != nil {
 			t.Errorf("setting initial watch: %v", err)
 			return
 		}
-		if err := r.AddWatch(gvk); err != nil {
+		if err := r.AddWatch(ctx, gvk); err != nil {
 			t.Errorf("setting redundant watch: %v", err)
 			return
 		}
@@ -224,13 +225,14 @@ func TestRegistrar_RemoveWatch_Idempotent(t *testing.T) {
 		return
 	}
 
+	ctx := context.Background()
 	gvk := schema.GroupVersionKind{
 		Version: "v1",
 		Kind:    "Pod",
 	}
 
 	for _, r := range []*Registrar{r1, r2} {
-		if err := r.AddWatch(gvk); err != nil {
+		if err := r.AddWatch(ctx, gvk); err != nil {
 			t.Errorf("setting initial watch: %v", err)
 			return
 		}
@@ -242,7 +244,7 @@ func TestRegistrar_RemoveWatch_Idempotent(t *testing.T) {
 		return
 	}
 
-	if err := r1.RemoveWatch(gvk); err != nil {
+	if err := r1.RemoveWatch(ctx, gvk); err != nil {
 		t.Errorf("removing first watch: %v", err)
 		return
 	}
@@ -259,7 +261,7 @@ func TestRegistrar_RemoveWatch_Idempotent(t *testing.T) {
 		return
 	}
 
-	if err := r2.RemoveWatch(gvk); err != nil {
+	if err := r2.RemoveWatch(ctx, gvk); err != nil {
 		t.Errorf("removing second watch: %v", err)
 		return
 	}
@@ -278,7 +280,7 @@ func TestRegistrar_RemoveWatch_Idempotent(t *testing.T) {
 	}
 
 	// Extra removes are fine.
-	if err := r2.RemoveWatch(gvk); err != nil {
+	if err := r2.RemoveWatch(ctx, gvk); err != nil {
 		t.Errorf("redundant remove: %v", err)
 		return
 	}
@@ -325,7 +327,7 @@ func TestRegistrar_Replay(t *testing.T) {
 	}
 
 	for _, entry := range registrars {
-		if err := entry.r.AddWatch(gvk); err != nil {
+		if err := entry.r.AddWatch(ctx, gvk); err != nil {
 			t.Errorf("setting initial watch: %v", err)
 			return
 		}
@@ -415,7 +417,7 @@ func TestRegistrar_Replay_Retry(t *testing.T) {
 	}
 
 	for _, r := range []*Registrar{r1, r2} {
-		if err := r.AddWatch(gvk); err != nil {
+		if err := r.AddWatch(ctx, gvk); err != nil {
 			t.Errorf("setting initial watch: %v", err)
 			return
 		}
@@ -495,7 +497,7 @@ func TestRegistrar_Replay_Async(t *testing.T) {
 		Kind:    "Pod",
 	}
 	for _, r := range []*Registrar{r1, r2} {
-		if err := r.AddWatch(gvk); err != nil {
+		if err := r.AddWatch(ctx, gvk); err != nil {
 			t.Errorf("setting initial watch: %v", err)
 			return
 		}
@@ -510,7 +512,7 @@ func TestRegistrar_Replay_Async(t *testing.T) {
 	}
 
 	// Ensure we can cancel a pending replay
-	if err := r2.RemoveWatch(gvk); err != nil {
+	if err := r2.RemoveWatch(ctx, gvk); err != nil {
 		t.Errorf("removing watch: %v", err)
 	}
 
@@ -522,7 +524,7 @@ func TestRegistrar_Replay_Async(t *testing.T) {
 	}
 
 	// [Scenario 2] - Verify that pending replays are canceled during watch manager shutdown.
-	if err := r2.AddWatch(gvk); err != nil {
+	if err := r2.AddWatch(ctx, gvk); err != nil {
 		t.Errorf("adding watch: %v", err)
 	}
 	select {
@@ -605,18 +607,19 @@ func TestRegistrar_ReplaceWatch(t *testing.T) {
 	service := schema.GroupVersionKind{Version: "v1", Kind: "Service"}
 	secret := schema.GroupVersionKind{Version: "v1", Kind: "Secret"}
 
-	err = r1.AddWatch(pod)
+	ctx := context.Background()
+	err = r1.AddWatch(ctx, pod)
 	g.Expect(err).NotTo(gomega.HaveOccurred(), "initial pod watch")
-	err = r1.AddWatch(volume)
+	err = r1.AddWatch(ctx, volume)
 	g.Expect(err).NotTo(gomega.HaveOccurred(), "initial volume watch")
-	err = r1.AddWatch(deploy)
+	err = r1.AddWatch(ctx, deploy)
 	g.Expect(err).NotTo(gomega.HaveOccurred(), "initial deployment watch")
 
-	err = r2.AddWatch(volume)
+	err = r2.AddWatch(ctx, volume)
 	g.Expect(err).NotTo(gomega.HaveOccurred(), "initial volume watch")
-	err = r2.AddWatch(configMap)
+	err = r2.AddWatch(ctx, configMap)
 	g.Expect(err).NotTo(gomega.HaveOccurred(), "initial configmap watch")
-	err = r2.AddWatch(secret)
+	err = r2.AddWatch(ctx, secret)
 	g.Expect(err).NotTo(gomega.HaveOccurred(), "initial secret watch")
 
 	// Check initial counters
@@ -637,7 +640,7 @@ func TestRegistrar_ReplaceWatch(t *testing.T) {
 
 	// Pod overlaps between r1 and r2. Secret is retained. ConfigMap is swapped for Service.
 	// Volume originally overlapped between r1 and r2, but will be removed from r2.
-	err = r2.ReplaceWatch([]schema.GroupVersionKind{pod, service, secret})
+	err = r2.ReplaceWatch(ctx, []schema.GroupVersionKind{pod, service, secret})
 	g.Expect(err).NotTo(gomega.HaveOccurred(), "calling replaceWatch")
 
 	// Check final counters

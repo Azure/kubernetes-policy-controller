@@ -58,7 +58,7 @@ var gvkAssignMetadata = schema.GroupVersionKind{
 type Adder struct {
 	MutationCache *mutation.System
 	Tracker       *readiness.Tracker
-	GetPod        func() (*corev1.Pod, error)
+	GetPod        func(context.Context) (*corev1.Pod, error)
 }
 
 // Add creates a new AssignMetadata Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -78,7 +78,7 @@ func (a *Adder) InjectTracker(t *readiness.Tracker) {
 	a.Tracker = t
 }
 
-func (a *Adder) InjectGetPod(getPod func() (*corev1.Pod, error)) {
+func (a *Adder) InjectGetPod(getPod func(context.Context) (*corev1.Pod, error)) {
 	a.GetPod = getPod
 }
 
@@ -88,7 +88,7 @@ func (a *Adder) InjectMutationCache(mutationCache *mutation.System) {
 
 // newReconciler returns a new reconcile.Reconciler
 
-func newReconciler(mgr manager.Manager, mutationCache *mutation.System, tracker *readiness.Tracker, getPod func() (*corev1.Pod, error)) *Reconciler {
+func newReconciler(mgr manager.Manager, mutationCache *mutation.System, tracker *readiness.Tracker, getPod func(context.Context) (*corev1.Pod, error)) *Reconciler {
 	r := &Reconciler{
 		system:  mutationCache,
 		Client:  mgr.GetClient(),
@@ -137,7 +137,7 @@ type Reconciler struct {
 	client.Client
 	system  *mutation.System
 	tracker *readiness.Tracker
-	getPod  func() (*corev1.Pod, error)
+	getPod  func(ctx context.Context) (*corev1.Pod, error)
 	scheme  *runtime.Scheme
 }
 
@@ -195,7 +195,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 		return reconcile.Result{}, nil
 	}
 
-	status, err := r.getOrCreatePodStatus(mID)
+	status, err := r.getOrCreatePodStatus(ctx, mID)
 	if err != nil {
 		log.Info("could not get/create pod status object", "error", err)
 		return reconcile.Result{}, err
@@ -235,21 +235,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 	return ctrl.Result{}, nil
 }
 
-func (r *Reconciler) getOrCreatePodStatus(mutatorID types.ID) (*statusv1beta1.MutatorPodStatus, error) {
+func (r *Reconciler) getOrCreatePodStatus(ctx context.Context, mutatorID types.ID) (*statusv1beta1.MutatorPodStatus, error) {
 	statusObj := &statusv1beta1.MutatorPodStatus{}
 	sName, err := statusv1beta1.KeyForMutatorID(util.GetPodName(), mutatorID)
 	if err != nil {
 		return nil, err
 	}
 	key := apiTypes.NamespacedName{Name: sName, Namespace: util.GetNamespace()}
-	if err := r.Get(context.TODO(), key, statusObj); err != nil {
+	if err := r.Get(ctx, key, statusObj); err != nil {
 		if !errors.IsNotFound(err) {
 			return nil, err
 		}
 	} else {
 		return statusObj, nil
 	}
-	pod, err := r.getPod()
+	pod, err := r.getPod(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -257,13 +257,13 @@ func (r *Reconciler) getOrCreatePodStatus(mutatorID types.ID) (*statusv1beta1.Mu
 	if err != nil {
 		return nil, err
 	}
-	if err := r.Create(context.TODO(), statusObj); err != nil {
+	if err := r.Create(ctx, statusObj); err != nil {
 		return nil, err
 	}
 	return statusObj, nil
 }
 
-func (r *Reconciler) defaultGetPod() (*corev1.Pod, error) {
+func (r *Reconciler) defaultGetPod(_ context.Context) (*corev1.Pod, error) {
 	// require injection of GetPod in order to control what client we use to
 	// guarantee we don't inadvertently create a watch
 	panic("GetPod must be injected")

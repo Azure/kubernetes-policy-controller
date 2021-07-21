@@ -1,6 +1,7 @@
 package webhook
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -21,15 +22,16 @@ func TestValidationReportRequest(t *testing.T) {
 		"admission_status": "allow",
 	}
 
+	ctx := context.Background()
 	r, err := newStatsReporter()
 	if err != nil {
 		t.Errorf("newStatsReporter() error %v", err)
 	}
-	err = r.ReportValidationRequest(allowResponse, expectedDurationValueMin)
+	err = r.ReportValidationRequest(ctx, allowResponse, expectedDurationValueMin)
 	if err != nil {
 		t.Errorf("ReportRequest error %v", err)
 	}
-	err = r.ReportValidationRequest(allowResponse, expectedDurationValueMax)
+	err = r.ReportValidationRequest(ctx, allowResponse, expectedDurationValueMax)
 	if err != nil {
 		t.Errorf("ReportRequest error %v", err)
 	}
@@ -41,15 +43,16 @@ func TestMutationReportRequest(t *testing.T) {
 		"mutation_status": "success",
 	}
 
+	ctx := context.Background()
 	r, err := newStatsReporter()
 	if err != nil {
 		t.Errorf("newStatsReporter() error %v", err)
 	}
-	err = r.ReportMutationRequest(successResponse, expectedDurationValueMin)
+	err = r.ReportMutationRequest(ctx, successResponse, expectedDurationValueMin)
 	if err != nil {
 		t.Errorf("ReportRequest error %v", err)
 	}
-	err = r.ReportMutationRequest(successResponse, expectedDurationValueMax)
+	err = r.ReportMutationRequest(ctx, successResponse, expectedDurationValueMax)
 	if err != nil {
 		t.Errorf("ReportRequest error %v", err)
 	}

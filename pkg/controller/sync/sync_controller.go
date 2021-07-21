@@ -149,13 +149,13 @@ func (r *ReconcileSync) Reconcile(ctx context.Context, request reconcile.Request
 	reportMetrics := false
 	defer func() {
 		if reportMetrics {
-			if err := r.reporter.reportSyncDuration(time.Since(timeStart)); err != nil {
+			if err := r.reporter.reportSyncDuration(ctx, time.Since(timeStart)); err != nil {
 				log.Error(err, "failed to report sync duration")
 			}
 
-			r.metricsCache.ReportSync(&r.reporter)
+			r.metricsCache.ReportSync(ctx, &r.reporter)
 
-			if err := r.reporter.reportLastSync(); err != nil {
+			if err := r.reporter.reportLastSync(ctx); err != nil {
 				log.Error(err, "failed to report last sync timestamp")
 			}
 		}
@@ -169,7 +169,7 @@ func (r *ReconcileSync) Reconcile(ctx context.Context, request reconcile.Request
 			// This is a deletion; remove the data
 			instance.SetNamespace(unpackedRequest.Namespace)
 			instance.SetName(unpackedRequest.Name)
-			if _, err := r.opa.RemoveData(context.Background(), instance); err != nil {
+			if _, err := r.opa.RemoveData(ctx, instance); err != nil {
 				return reconcile.Result{}, err
 			}
 
@@ -199,7 +199,7 @@ func (r *ReconcileSync) Reconcile(ctx context.Context, request reconcile.Request
 	}
 
 	if !instance.GetDeletionTimestamp().IsZero() {
-		if _, err := r.opa.RemoveData(context.Background(), instance); err != nil {
+		if _, err := r.opa.RemoveData(ctx, instance); err != nil {
 			return reconcile.Result{}, err
 		}
 
@@ -220,7 +220,7 @@ func (r *ReconcileSync) Reconcile(ctx context.Context, request reconcile.Request
 		logging.ResourceName, instance.GetName(),
 	)
 
-	if _, err := r.opa.AddData(context.Background(), instance); err != nil {
+	if _, err := r.opa.AddData(ctx, instance); err != nil {
 		r.metricsCache.AddObject(syncKey, Tags{
 			Kind:   instance.GetKind(),
 			Status: metrics.ErrorStatus,
@@ -298,7 +298,7 @@ func (c *MetricsCache) DeleteObject(key string) {
 	delete(c.Cache, key)
 }
 
-func (c *MetricsCache) ReportSync(reporter *Reporter) {
+func (c *MetricsCache) ReportSync(ctx context.Context, reporter *Reporter) {
 	c.mux.RLock()
 	defer c.mux.RUnlock()
 
@@ -309,7 +309,7 @@ func (c *MetricsCache) ReportSync(reporter *Reporter) {
 
 	for kind := range c.KnownKinds {
 		for _, status := range metrics.AllStatuses {
-			if err := reporter.reportSync(
+			if err := reporter.reportSync(ctx,
 				Tags{
 					Kind:   kind,
 					Status: status,

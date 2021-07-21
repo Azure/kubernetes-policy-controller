@@ -29,16 +29,14 @@ type SingleRunner struct {
 	m   map[string]context.CancelFunc
 	mu  sync.Mutex
 	grp *errgroup.Group
-	ctx context.Context
 }
 
 // RunnerWithContext returns an initialized SingleRunner.
 // The provided context is used as the parent of subsequently scheduled goroutines.
 func RunnerWithContext(ctx context.Context) *SingleRunner {
-	grp, ctx := errgroup.WithContext(ctx)
+	grp, _ := errgroup.WithContext(ctx)
 	return &SingleRunner{
 		grp: grp,
-		ctx: ctx,
 		m:   make(map[string]context.CancelFunc),
 	}
 }
@@ -64,7 +62,7 @@ func (s *SingleRunner) Wait() error {
 
 // Go schedules the provided function on a new goroutine if the provided key has
 // not been used for scheduling before.
-func (s *SingleRunner) Go(key string, f func(context.Context) error) {
+func (s *SingleRunner) Go(ctx context.Context, key string, f func(context.Context) error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -75,14 +73,6 @@ func (s *SingleRunner) Go(key string, f func(context.Context) error) {
 	if _, ok := s.m[key]; ok {
 		// Reject if already running
 		return
-	}
-
-	var ctx context.Context
-	switch {
-	case s.ctx != nil:
-		ctx = s.ctx
-	default:
-		ctx = context.Background()
 	}
 
 	ctx, cancel := context.WithCancel(ctx)

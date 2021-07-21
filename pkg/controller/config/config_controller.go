@@ -215,7 +215,7 @@ func (r *ReconcileConfig) Reconcile(ctx context.Context, request reconcile.Reque
 	// after a deprecation period, all finalizer code can be removed.
 	if exists && hasFinalizer(instance) {
 		removeFinalizer(instance)
-		if err := r.writer.Update(context.Background(), instance); err != nil {
+		if err := r.writer.Update(ctx, instance); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
@@ -286,7 +286,7 @@ func (r *ReconcileConfig) Reconcile(ctx context.Context, request reconcile.Reque
 	// Otherwise the sync controller will drop events for the newly watched kinds.
 	// Defer error handling so object re-sync happens even if the watch is hard
 	// errored due to a missing GVK in the watch set.
-	if err := r.watcher.ReplaceWatch(newSyncOnly.Items()); err != nil {
+	if err := r.watcher.ReplaceWatch(ctx, newSyncOnly.Items()); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -308,7 +308,7 @@ func (r *ReconcileConfig) wipeCacheIfNeeded(ctx context.Context) error {
 
 		// reset sync cache before sending the metric
 		r.syncMetricsCache.ResetCache()
-		r.syncMetricsCache.ReportSync(&syncc.Reporter{Ctx: ctx})
+		r.syncMetricsCache.ReportSync(ctx, &syncc.Reporter{})
 
 		r.needsWipe = false
 	}
@@ -333,7 +333,7 @@ func (r *ReconcileConfig) replayData(ctx context.Context) error {
 			return fmt.Errorf("replaying data for %+v: %w", gvk, err)
 		}
 
-		defer r.syncMetricsCache.ReportSync(&syncc.Reporter{Ctx: ctx})
+		defer r.syncMetricsCache.ReportSync(ctx, &syncc.Reporter{})
 
 		for i := range u.Items {
 			syncKey := r.syncMetricsCache.GetSyncKey(u.Items[i].GetNamespace(), u.Items[i].GetName())
@@ -347,7 +347,7 @@ func (r *ReconcileConfig) replayData(ctx context.Context) error {
 				continue
 			}
 
-			if _, err := r.opa.AddData(context.Background(), &u.Items[i]); err != nil {
+			if _, err := r.opa.AddData(ctx, &u.Items[i]); err != nil {
 				r.syncMetricsCache.AddObject(syncKey, syncc.Tags{
 					Kind:   u.Items[i].GetKind(),
 					Status: metrics.ErrorStatus,

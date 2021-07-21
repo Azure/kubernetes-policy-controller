@@ -23,8 +23,8 @@ import "context"
 // is called or when the parent channel is closed, whichever happens first.
 //
 // Note the caller must *always* call the CancelFunc, otherwise resources may be leaked.
-func ContextForChannel(parentCh <-chan struct{}) (context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithCancel(context.Background())
+func ContextForChannel(ctx context.Context, parentCh <-chan struct{}) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(ctx)
 	if parentCh == nil {
 		return ctx, cancel
 	}

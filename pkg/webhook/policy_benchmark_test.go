@@ -51,17 +51,6 @@ type fakeNsGetter struct {
 	scheme *runtime.Scheme
 }
 
-func (f *fakeNsGetter) Get(ctx context.Context, key client.ObjectKey, obj client.Object) error {
-	if ns, ok := obj.(*corev1.Namespace); ok {
-		ns.ObjectMeta = metav1.ObjectMeta{
-			Name: key.Name,
-		}
-		return nil
-	}
-
-	return errors.New("not found")
-}
-
 // getFiles reads a directory and returns a list of files ending with .yaml/.yml
 // returns an error if directory does not exist.
 func getFiles(dir string) ([]string, error) {
@@ -83,6 +72,17 @@ func getFiles(dir string) ([]string, error) {
 		filePaths = append(filePaths, filepath.Join(dir, file.Name()))
 	}
 	return filePaths, nil
+}
+
+func (f *fakeNsGetter) Get(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+	if ns, ok := obj.(*corev1.Namespace); ok {
+		ns.ObjectMeta = metav1.ObjectMeta{
+			Name: key.Name,
+		}
+		return nil
+	}
+
+	return errors.New("not found")
 }
 
 // readTemplates reads templates from a directory

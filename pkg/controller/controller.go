@@ -49,7 +49,7 @@ type Injector interface {
 }
 
 type GetPodInjector interface {
-	InjectGetPod(func() (*corev1.Pod, error))
+	InjectGetPod(func(ctx context.Context) (*corev1.Pod, error))
 }
 
 type GetProcessExcluderInjector interface {
@@ -69,7 +69,7 @@ type Dependencies struct {
 	WatchManger      *watch.Manager
 	ControllerSwitch *watch.ControllerSwitch
 	Tracker          *readiness.Tracker
-	GetPod           func() (*corev1.Pod, error)
+	GetPod           func(ctx context.Context) (*corev1.Pod, error)
 	ProcessExcluder  *process.Excluder
 	MutationCache    *mutation.System
 }
@@ -81,7 +81,7 @@ type defaultPodGetter struct {
 	mux    sync.RWMutex
 }
 
-func (g *defaultPodGetter) GetPod() (*corev1.Pod, error) {
+func (g *defaultPodGetter) GetPod(ctx context.Context) (*corev1.Pod, error) {
 	pod := func() *corev1.Pod {
 		g.mux.RLock()
 		defer g.mux.RUnlock()
@@ -108,7 +108,7 @@ func (g *defaultPodGetter) GetPod() (*corev1.Pod, error) {
 		return nil, err
 	}
 	uPod.SetGroupVersionKind(gvk)
-	if err := g.client.Get(context.TODO(), key, uPod); err != nil {
+	if err := g.client.Get(ctx, key, uPod); err != nil {
 		return nil, err
 	}
 	if err := g.scheme.Convert(uPod, pod, nil); err != nil {
@@ -119,9 +119,9 @@ func (g *defaultPodGetter) GetPod() (*corev1.Pod, error) {
 }
 
 // AddToManager adds all Controllers to the Manager.
-func AddToManager(m manager.Manager, deps Dependencies) error {
+func AddToManager(ctx context.Context, m manager.Manager, deps Dependencies) error {
 	// Reset cache on start - this is to allow for the future possibility that the OPA cache is stored remotely
-	if err := deps.Opa.Reset(context.Background()); err != nil {
+	if err := deps.Opa.Reset(ctx); err != nil {
 		return err
 	}
 	if deps.GetPod == nil {
@@ -137,7 +137,7 @@ func AddToManager(m manager.Manager, deps Dependencies) error {
 			return err
 		}
 		podstatus.DisablePodOwnership()
-		fakePodGetter := func() (*corev1.Pod, error) {
+		fakePodGetter := func(_ context.Context) (*corev1.Pod, error) {
 			pod := &corev1.Pod{}
 			pod.Name = util.GetPodName()
 			return pod, nil

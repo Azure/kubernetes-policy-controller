@@ -154,12 +154,12 @@ func (am *Manager) audit(ctx context.Context) error {
 	defer func() {
 		logFinish(am.log)
 		latency := time.Since(startTime)
-		if err := am.reporter.reportLatency(latency); err != nil {
+		if err := am.reporter.reportLatency(ctx, latency); err != nil {
 			am.log.Error(err, "failed to report latency")
 		}
 	}()
 
-	if err := am.reporter.reportRunStart(startTime); err != nil {
+	if err := am.reporter.reportRunStart(ctx, startTime); err != nil {
 		am.log.Error(err, "failed to report run start time")
 	}
 
@@ -222,7 +222,7 @@ func (am *Manager) audit(ctx context.Context) error {
 	}
 
 	for k, v := range totalViolationsPerEnforcementAction {
-		if err := am.reporter.reportTotalViolations(k, v); err != nil {
+		if err := am.reporter.reportTotalViolations(ctx, k, v); err != nil {
 			am.log.Error(err, "failed to report total violations")
 		}
 	}
@@ -684,7 +684,6 @@ func (ucloop *updateConstraintLoop) update(ctx context.Context, constraintsGVKs 
 			case <-ucloop.stop:
 				return true, nil
 			default:
-				ctx := context.Background()
 				var latestItem unstructured.Unstructured
 				item.DeepCopyInto(&latestItem)
 				name := latestItem.GetName()

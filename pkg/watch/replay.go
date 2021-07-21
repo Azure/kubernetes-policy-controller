@@ -121,94 +121,96 @@ func (r *replayTracker) replayWaitCh(gvk schema.GroupVersionKind) chan struct{} 
 // replayEventsLoop processes requests to start and stop replaying events for
 // registrars that join an existing informer and need historical data.
 // Events for each registrar will be listed and replayed in an independent goroutine.
-func (wm *Manager) replayEventsLoop() error {
-	var wg sync.WaitGroup
-	defer wg.Wait()
+func (wm *Manager) replayEventsLoop(ctx context.Context) func() error {
+	return func() error {
+		var wg sync.WaitGroup
+		defer wg.Wait()
 
-	ctx, cancel := syncutil.ContextForChannel(wm.stopped)
-	defer cancel()
+		ctx, cancel := syncutil.ContextForChannel(ctx, wm.stopped)
+		defer cancel()
 
-	// Entries remain until a watch is removed.
-	m := make(map[schema.GroupVersionKind]cancelMap)
+		// Entries remain until a watch is removed.
+		m := make(map[schema.GroupVersionKind]cancelMap)
 
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case req := <-wm.replayRequests:
-			if req.r == nil {
-				log.Info("skipping replay for nil registrar")
-				continue
-			}
-			log := log.WithValues("registrar", req.r.parentName, "gvk", req.gvk)
-
-			byRegistrar := m[req.gvk]
-			c, inProgress := byRegistrar[req.r]
-
-			// Handle cancellation requests
-			if req.isCancel && inProgress {
-				log.Info("canceling replay")
-				delete(byRegistrar, req.r)
-				if len(byRegistrar) == 0 {
-					delete(m, req.gvk)
-				}
-
-				if c == nil {
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			case req := <-wm.replayRequests:
+				if req.r == nil {
+					log.Info("skipping replay for nil registrar")
 					continue
 				}
-				// Cancel the pending replay.
-				// Note we do not wait for the individual goroutine to complete,
-				// but we will sync on all of them when stopping the watch manager.
-				c()
-				continue
-			}
+				log := log.WithValues("registrar", req.r.parentName, "gvk", req.gvk)
 
-			if req.isCancel || inProgress {
-				// Replay in progress or cancel request, either way, do not proceed to replay again.
-				continue
-			}
+				byRegistrar := m[req.gvk]
+				c, inProgress := byRegistrar[req.r]
 
-			if !wm.replayTracker.replayIntended(req.r, req.gvk) {
-				// A requested replay has since been canceled by the registrar, do not start it
-				log.Info("skipping replay: replay request has since been canceled")
-				continue
-			}
-
-			if req.r.events == nil {
-				log.Info("skipping replay: can't deliver to nil channel")
-				continue
-			}
-
-			// Handle replay requests
-			log.Info("replaying events")
-			childCtx, childCancel := context.WithCancel(ctx)
-			byRegistrar.Set(req.r, childCancel)
-			m[req.gvk] = byRegistrar
-			wg.Add(1)
-			wm.replayTracker.addReplay(req.gvk)
-			go func(group *sync.WaitGroup, ctx context.Context, cancel context.CancelFunc, log logr.Logger) {
-				defer wg.Done()
-				defer wm.replayTracker.replayDone(req.gvk)
-				defer cancel()
-
-				err := wait.ExponentialBackoff(retry.DefaultBackoff, func() (bool, error) {
-					err := wm.replayEvents(childCtx, req.r, req.gvk)
-					if err != nil && err != context.Canceled {
-						// Log and retry w/ backoff
-						log.Error(err, "replaying events")
-						return false, nil
+				// Handle cancellation requests
+				if req.isCancel && inProgress {
+					log.Info("canceling replay")
+					delete(byRegistrar, req.r)
+					if len(byRegistrar) == 0 {
+						delete(m, req.gvk)
 					}
-					if err == context.Canceled {
-						// Give up
-						return false, err
+
+					if c == nil {
+						continue
 					}
-					// Success
-					return true, nil
-				})
-				if err != nil && err != context.Canceled {
-					log.Error(err, "replaying events")
+					// Cancel the pending replay.
+					// Note we do not wait for the individual goroutine to complete,
+					// but we will sync on all of them when stopping the watch manager.
+					c()
+					continue
 				}
-			}(&wg, childCtx, childCancel, log)
+
+				if req.isCancel || inProgress {
+					// Replay in progress or cancel request, either way, do not proceed to replay again.
+					continue
+				}
+
+				if !wm.replayTracker.replayIntended(req.r, req.gvk) {
+					// A requested replay has since been canceled by the registrar, do not start it
+					log.Info("skipping replay: replay request has since been canceled")
+					continue
+				}
+
+				if req.r.events == nil {
+					log.Info("skipping replay: can't deliver to nil channel")
+					continue
+				}
+
+				// Handle replay requests
+				log.Info("replaying events")
+				childCtx, childCancel := context.WithCancel(ctx)
+				byRegistrar.Set(req.r, childCancel)
+				m[req.gvk] = byRegistrar
+				wg.Add(1)
+				wm.replayTracker.addReplay(req.gvk)
+				go func(group *sync.WaitGroup, ctx context.Context, cancel context.CancelFunc, log logr.Logger) {
+					defer wg.Done()
+					defer wm.replayTracker.replayDone(req.gvk)
+					defer cancel()
+
+					err := wait.ExponentialBackoff(retry.DefaultBackoff, func() (bool, error) {
+						err := wm.replayEvents(childCtx, req.r, req.gvk)
+						if err != nil && err != context.Canceled {
+							// Log and retry w/ backoff
+							log.Error(err, "replaying events")
+							return false, nil
+						}
+						if err == context.Canceled {
+							// Give up
+							return false, err
+						}
+						// Success
+						return true, nil
+					})
+					if err != nil && err != context.Canceled {
+						log.Error(err, "replaying events")
+					}
+				}(&wg, childCtx, childCancel, log)
+			}
 		}
 	}
 }

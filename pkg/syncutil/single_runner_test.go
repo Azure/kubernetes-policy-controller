@@ -32,7 +32,7 @@ func Test_SingleRunner(t *testing.T) {
 	r := RunnerWithContext(ctx)
 
 	wg.Add(1)
-	r.Go("one", func(ctx context.Context) error {
+	r.Go(ctx, "one", func(ctx context.Context) error {
 		defer wg.Done()
 		defer close(syncOne)
 		<-ctx.Done()
@@ -40,13 +40,13 @@ func Test_SingleRunner(t *testing.T) {
 	})
 
 	// Repeat key won't be scheduled.
-	r.Go("one", func(ctx context.Context) error {
+	r.Go(ctx, "one", func(ctx context.Context) error {
 		t.Fatal("repeat key will never be scheduled")
 		return nil
 	})
 
 	wg.Add(1)
-	r.Go("two", func(ctx context.Context) error {
+	r.Go(ctx, "two", func(ctx context.Context) error {
 		defer wg.Done()
 		defer close(syncTwo)
 		<-ctx.Done()

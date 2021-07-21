@@ -65,9 +65,9 @@ func reset() error {
 	return register()
 }
 
-func (r *reporter) reportCtMetric(status metrics.Status, count int64) error {
+func (r *reporter) reportCtMetric(ctx context.Context, status metrics.Status, count int64) error {
 	ctx, err := tag.New(
-		r.ctx,
+		ctx,
 		tag.Insert(statusKey, string(status)),
 	)
 	if err != nil {
@@ -76,9 +76,9 @@ func (r *reporter) reportCtMetric(status metrics.Status, count int64) error {
 	return metrics.Record(ctx, ctM.M(count))
 }
 
-func (r *reporter) reportIngestDuration(status metrics.Status, d time.Duration) error {
+func (r *reporter) reportIngestDuration(ctx context.Context, status metrics.Status, d time.Duration) error {
 	ctx, err := tag.New(
-		r.ctx,
+		ctx,
 		tag.Insert(statusKey, string(status)),
 	)
 	if err != nil {
@@ -90,18 +90,11 @@ func (r *reporter) reportIngestDuration(status metrics.Status, d time.Duration) 
 
 // newStatsReporter creates a reporter for watch metrics.
 func newStatsReporter() (*reporter, error) {
-	ctx, err := tag.New(
-		context.TODO(),
-	)
-	if err != nil {
-		return nil, err
-	}
 	reg := &ctRegistry{cache: make(map[types.NamespacedName]metrics.Status)}
-	return &reporter{ctx: ctx, registry: reg}, nil
+	return &reporter{registry: reg}, nil
 }
 
 type reporter struct {
-	ctx      context.Context
 	registry *ctRegistry
 }
 
@@ -127,7 +120,7 @@ func (r *ctRegistry) remove(key types.NamespacedName) {
 	r.dirty = true
 }
 
-func (r *ctRegistry) report(mReporter *reporter) {
+func (r *ctRegistry) report(ctx context.Context, mReporter *reporter) {
 	if !r.dirty {
 		return
 	}
@@ -137,7 +130,7 @@ func (r *ctRegistry) report(mReporter *reporter) {
 	}
 	hadErr := false
 	for _, status := range metrics.AllStatuses {
-		if err := mReporter.reportCtMetric(status, totals[status]); err != nil {
+		if err := mReporter.reportCtMetric(ctx, status, totals[status]); err != nil {
 			log.Error(err, "failed to report total constraint templates")
 			hadErr = true
 		}

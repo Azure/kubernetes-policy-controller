@@ -157,7 +157,7 @@ violation[{"msg": "denied!"}] {
 	pod.Name = "no-pod"
 	// events will be used to receive events from dynamic watches registered
 	events := make(chan event.GenericEvent, 1024)
-	rec, _ := newReconciler(mgr, opa, wm, cs, tracker, events, events, func() (*corev1.Pod, error) { return pod, nil })
+	rec, _ := newReconciler(mgr, opa, wm, cs, tracker, events, events, func(context.Context) (*corev1.Pod, error) { return pod, nil })
 	g.Expect(add(mgr, rec)).NotTo(gomega.HaveOccurred())
 
 	cstr := newDenyAllCstr()
@@ -480,7 +480,7 @@ violation[{"msg": "denied!"}] {
 	pod.Name = "no-pod"
 	// events will be used to receive events from dynamic watches registered
 	events := make(chan event.GenericEvent, 1024)
-	rec, _ := newReconciler(mgr, opa, wm, cs, tracker, events, nil, func() (*corev1.Pod, error) { return pod, nil })
+	rec, _ := newReconciler(mgr, opa, wm, cs, tracker, events, nil, func(context.Context) (*corev1.Pod, error) { return pod, nil })
 	g.Expect(add(mgr, rec)).NotTo(gomega.HaveOccurred())
 
 	// get the object tracker for the constraint

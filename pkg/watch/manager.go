@@ -95,8 +95,8 @@ func (wm *Manager) NewRegistrar(parent string, events chan<- event.GenericEvent)
 }
 
 // RemoveRegistrar removes a registrar and all its watches.
-func (wm *Manager) RemoveRegistrar(parentName string) error {
-	return wm.managedKinds.RemoveRegistrar(parentName)
+func (wm *Manager) RemoveRegistrar(ctx context.Context, parentName string) error {
+	return wm.managedKinds.RemoveRegistrar(ctx, parentName)
 }
 
 // Start runs the watch manager, processing events received from dynamic informers and distributing them
@@ -119,7 +119,7 @@ func (wm *Manager) Start(ctx context.Context) error {
 		return context.Canceled
 	})
 	// Routine for asynchronous replay of past events to joining listeners.
-	grp.Go(wm.replayEventsLoop)
+	grp.Go(wm.replayEventsLoop(ctx))
 	_ = grp.Wait()
 	return nil
 }
@@ -138,13 +138,13 @@ func (wm *Manager) GetManagedGVK() []schema.GroupVersionKind {
 	return wm.managedKinds.GetGVK()
 }
 
-func (wm *Manager) addWatch(r *Registrar, gvk schema.GroupVersionKind) error {
+func (wm *Manager) addWatch(ctx context.Context, r *Registrar, gvk schema.GroupVersionKind) error {
 	wm.watchedMux.Lock()
 	defer wm.watchedMux.Unlock()
-	return wm.doAddWatch(r, gvk)
+	return wm.doAddWatch(ctx, r, gvk)
 }
 
-func (wm *Manager) doAddWatch(r *Registrar, gvk schema.GroupVersionKind) error {
+func (wm *Manager) doAddWatch(ctx context.Context, r *Registrar, gvk schema.GroupVersionKind) error {
 	// lock acquired by caller
 
 	if r == nil {
@@ -193,19 +193,19 @@ func (wm *Manager) doAddWatch(r *Registrar, gvk schema.GroupVersionKind) error {
 		registrars: map[*Registrar]bool{r: true},
 	}
 	wm.watchedKinds[gvk] = watchers.merge(wv)
-	if err := wm.metrics.reportGvkCount(int64(len(wm.watchedKinds))); err != nil {
+	if err := wm.metrics.reportGvkCount(ctx, int64(len(wm.watchedKinds))); err != nil {
 		log.Error(err, "while trying to report gvk count metric")
 	}
 	return nil
 }
 
-func (wm *Manager) removeWatch(r *Registrar, gvk schema.GroupVersionKind) error {
+func (wm *Manager) removeWatch(ctx context.Context, r *Registrar, gvk schema.GroupVersionKind) error {
 	wm.watchedMux.Lock()
 	defer wm.watchedMux.Unlock()
-	return wm.doRemoveWatch(r, gvk)
+	return wm.doRemoveWatch(ctx, r, gvk)
 }
 
-func (wm *Manager) doRemoveWatch(r *Registrar, gvk schema.GroupVersionKind) error {
+func (wm *Manager) doRemoveWatch(ctx context.Context, r *Registrar, gvk schema.GroupVersionKind) error {
 	// lock acquired by caller
 
 	v, ok := wm.watchedKinds[gvk]
@@ -240,7 +240,7 @@ func (wm *Manager) doRemoveWatch(r *Registrar, gvk schema.GroupVersionKind) erro
 		return fmt.Errorf("removing %+v: %w", gvk, err)
 	}
 	delete(wm.watchedKinds, gvk)
-	if err := wm.metrics.reportGvkCount(int64(len(wm.watchedKinds))); err != nil {
+	if err := wm.metrics.reportGvkCount(ctx, int64(len(wm.watchedKinds))); err != nil {
 		log.Error(err, "while trying to report gvk count metric")
 	}
 	log.Info("watch removed", "gvk", gvk)
@@ -248,7 +248,7 @@ func (wm *Manager) doRemoveWatch(r *Registrar, gvk schema.GroupVersionKind) erro
 }
 
 // replaceWatches ensures all and only desired watches are running.
-func (wm *Manager) replaceWatches(r *Registrar) error {
+func (wm *Manager) replaceWatches(ctx context.Context, r *Registrar) error {
 	wm.watchedMux.Lock()
 	defer wm.watchedMux.Unlock()
 
@@ -260,7 +260,7 @@ func (wm *Manager) replaceWatches(r *Registrar) error {
 			// This registrar still desires this gvk, skip.
 			continue
 		}
-		if err := wm.doRemoveWatch(r, gvk); err != nil {
+		if err := wm.doRemoveWatch(ctx, r, gvk); err != nil {
 			errlist = append(errlist, fmt.Errorf("removing watch for %+v %w", gvk, err))
 		}
 	}
@@ -270,12 +270,12 @@ func (wm *Manager) replaceWatches(r *Registrar) error {
 		if !v.registrars[r] {
 			continue
 		}
-		if err := wm.doAddWatch(r, gvk); err != nil {
+		if err := wm.doAddWatch(ctx, r, gvk); err != nil {
 			errlist = append(errlist, fmt.Errorf("adding watch for %+v %w", gvk, err))
 		}
 	}
 
-	if err := wm.metrics.reportGvkCount(int64(len(wm.watchedKinds))); err != nil {
+	if err := wm.metrics.reportGvkCount(ctx, int64(len(wm.watchedKinds))); err != nil {
 		log.Error(err, "while trying to report gvk count metric")
 	}
 

@@ -485,7 +485,7 @@ func (t *Tracker) trackConstraintTemplates(ctx context.Context) error {
 		handled[gvk] = true
 		// Set an expectation for this constraint type
 		ot := t.constraints.Get(gvk)
-		t.constraintTrackers.Go(gvk.String(), func(ctx context.Context) error {
+		t.constraintTrackers.Go(ctx, gvk.String(), func(ctx context.Context) error {
 			err := t.trackConstraints(ctx, gvk, ot)
 			if err != nil {
 				log.Error(err, "aborted trackConstraints", "gvk", gvk)

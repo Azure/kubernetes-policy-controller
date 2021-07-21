@@ -29,7 +29,6 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.5.0
-  creationTimestamp: null
   labels:
     gatekeeper.sh/system: "yes"
   name: configs.config.gatekeeper.sh
@@ -40,12 +39,13 @@ spec:
     listKind: ConfigList
     plural: configs
     singular: config
+  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Config is the Schema for the configs API
+        description: Config is the Schema for the configs API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
@@ -56,7 +56,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: ConfigSpec defines the desired state of Config
+            description: ConfigSpec defines the desired state of Config.
             properties:
               match:
                 description: Configuration for namespace exclusion
@@ -64,6 +64,8 @@ spec:
                   properties:
                     excludedNamespaces:
                       items:
+                        description: 'A string that supports globbing at its end.  Ex: "kube-*" will match "kube-system" or "kube-public".  The asterisk is required for wildcard matching.'
+                        pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\*|-\*)?$
                         type: string
                       type: array
                     processes:
@@ -122,7 +124,7 @@ spec:
                 type: object
             type: object
           status:
-            description: ConfigStatus defines the observed state of Config
+            description: ConfigStatus defines the observed state of Config.
             type: object
         type: object
     served: true
@@ -139,7 +141,6 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.5.0
-  creationTimestamp: null
   labels:
     gatekeeper.sh/system: "yes"
   name: constraintpodstatuses.status.gatekeeper.sh
@@ -150,12 +151,13 @@ spec:
     listKind: ConstraintPodStatusList
     plural: constraintpodstatuses
     singular: constraintpodstatus
+  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: ConstraintPodStatus is the Schema for the constraintpodstatuses API
+        description: ConstraintPodStatus is the Schema for the constraintpodstatuses API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
@@ -166,7 +168,7 @@ spec:
           metadata:
             type: object
           status:
-            description: ConstraintPodStatusStatus defines the observed state of ConstraintPodStatus
+            description: ConstraintPodStatusStatus defines the observed state of ConstraintPodStatus.
             properties:
               constraintUID:
                 description: Storing the constraint UID allows us to detect drift, such as when a constraint has been recreated after its CRD was deleted out from under it, interrupting the watch
@@ -175,7 +177,7 @@ spec:
                 type: boolean
               errors:
                 items:
-                  description: Error represents a single error caught while adding a constraint to OPA
+                  description: Error represents a single error caught while adding a constraint to OPA.
                   properties:
                     code:
                       type: string
@@ -213,7 +215,6 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.5.0
-  creationTimestamp: null
   labels:
     gatekeeper.sh/system: "yes"
   name: constrainttemplatepodstatuses.status.gatekeeper.sh
@@ -224,12 +225,13 @@ spec:
     listKind: ConstraintTemplatePodStatusList
     plural: constrainttemplatepodstatuses
     singular: constrainttemplatepodstatus
+  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: ConstraintTemplatePodStatus is the Schema for the constrainttemplatepodstatuses API
+        description: ConstraintTemplatePodStatus is the Schema for the constrainttemplatepodstatuses API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
@@ -240,7 +242,7 @@ spec:
           metadata:
             type: object
           status:
-            description: ConstraintTemplatePodStatusStatus defines the observed state of ConstraintTemplatePodStatus
+            description: ConstraintTemplatePodStatusStatus defines the observed state of ConstraintTemplatePodStatus.
             properties:
               errors:
                 items:
@@ -286,7 +288,6 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.5.0
-  creationTimestamp: null
   labels:
     gatekeeper.sh/system: "yes"
   name: constrainttemplates.templates.gatekeeper.sh
@@ -297,8 +298,102 @@ spec:
     listKind: ConstraintTemplateList
     plural: constrainttemplates
     singular: constrainttemplate
+  preserveUnknownFields: false
   scope: Cluster
   versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: ConstraintTemplate is the Schema for the constrainttemplates API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ConstraintTemplateSpec defines the desired state of ConstraintTemplate
+            properties:
+              crd:
+                properties:
+                  spec:
+                    properties:
+                      names:
+                        properties:
+                          kind:
+                            type: string
+                          shortNames:
+                            items:
+                              type: string
+                            type: array
+                        type: object
+                      validation:
+                        properties:
+                          legacySchema:
+                            default: false
+                            type: boolean
+                          openAPIV3Schema:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                        type: object
+                    type: object
+                type: object
+              targets:
+                items:
+                  properties:
+                    libs:
+                      items:
+                        type: string
+                      type: array
+                    rego:
+                      type: string
+                    target:
+                      type: string
+                  type: object
+                type: array
+            type: object
+          status:
+            description: ConstraintTemplateStatus defines the observed state of ConstraintTemplate
+            properties:
+              byPod:
+                items:
+                  description: ByPodStatus defines the observed state of ConstraintTemplate as seen by an individual controller
+                  properties:
+                    errors:
+                      items:
+                        description: CreateCRDError represents a single error caught during parsing, compiling, etc.
+                        properties:
+                          code:
+                            type: string
+                          location:
+                            type: string
+                          message:
+                            type: string
+                        required:
+                        - code
+                        - message
+                        type: object
+                      type: array
+                    id:
+                      description: a unique identifier for the pod that wrote the status
+                      type: string
+                    observedGeneration:
+                      format: int64
+                      type: integer
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                type: array
+              created:
+                type: boolean
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
   - name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -330,6 +425,9 @@ spec:
                         type: object
                       validation:
                         properties:
+                          legacySchema:
+                            default: true
+                            type: boolean
                           openAPIV3Schema:
                             type: object
                             x-kubernetes-preserve-unknown-fields: true
@@ -420,6 +518,9 @@ spec:
                         type: object
                       validation:
                         properties:
+                          legacySchema:
+                            default: true
+                            type: boolean
                           openAPIV3Schema:
                             type: object
                             x-kubernetes-preserve-unknown-fields: true
@@ -476,7 +577,7 @@ spec:
             type: object
         type: object
     served: true
-    storage: true
+    storage: false
     subresources:
       status: {}
 status:
@@ -789,7 +890,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: openpolicyagent/gatekeeper:v3.6.0-beta.2
+        image: openpolicyagent/gatekeeper:v3.6.0-beta.3
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -885,7 +986,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: openpolicyagent/gatekeeper:v3.6.0-beta.2
+        image: openpolicyagent/gatekeeper:v3.6.0-beta.3
         imagePullPolicy: Always
         livenessProbe:
           httpGet:

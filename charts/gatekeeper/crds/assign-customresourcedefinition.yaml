@@ -13,12 +13,13 @@ spec:
     listKind: AssignList
     plural: assign
     singular: assign
+  preserveUnknownFields: false
   scope: Cluster
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Assign is the Schema for the assign API
+        description: Assign is the Schema for the assign API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
@@ -29,7 +30,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: AssignSpec defines the desired state of Assign
+            description: AssignSpec defines the desired state of Assign.
             properties:
               applyTo:
                 description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster Important: Run "make" to regenerate code after modifying this file'
@@ -153,7 +154,7 @@ spec:
                     type: object
                   pathTests:
                     items:
-                      description: "PathTest allows the user to customize how the mutation works if parent paths are missing. It traverses the list in order. All sub paths are tested against the provided condition, if the test fails, the mutation is not applied. All `subPath` entries must be a prefix of `location`. Any glob characters will take on the same value as was used to expand the matching glob in `location`. \n Available Tests: * MustExist    - the path must exist or do not mutate * MustNotExist - the path must not exist or do not mutate"
+                      description: "PathTest allows the user to customize how the mutation works if parent paths are missing. It traverses the list in order. All sub paths are tested against the provided condition, if the test fails, the mutation is not applied. All `subPath` entries must be a prefix of `location`. Any glob characters will take on the same value as was used to expand the matching glob in `location`. \n Available Tests: * MustExist    - the path must exist or do not mutate * MustNotExist - the path must not exist or do not mutate."
                       properties:
                         condition:
                           description: Condition describes whether the path either MustExist or MustNotExist in the original object
@@ -168,17 +169,17 @@ spec:
                 type: object
             type: object
           status:
-            description: AssignStatus defines the observed state of Assign
+            description: AssignStatus defines the observed state of Assign.
             properties:
               byPod:
                 items:
-                  description: MutatorPodStatusStatus defines the observed state of MutatorPodStatus
+                  description: MutatorPodStatusStatus defines the observed state of MutatorPodStatus.
                   properties:
                     enforced:
                       type: boolean
                     errors:
                       items:
-                        description: MutatorError represents a single error caught while adding a mutator to a system
+                        description: MutatorError represents a single error caught while adding a mutator to a system.
                         properties:
                           message:
                             type: string

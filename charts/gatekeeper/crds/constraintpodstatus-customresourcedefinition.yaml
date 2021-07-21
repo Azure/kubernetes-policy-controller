@@ -13,12 +13,13 @@ spec:
     listKind: ConstraintPodStatusList
     plural: constraintpodstatuses
     singular: constraintpodstatus
+  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: ConstraintPodStatus is the Schema for the constraintpodstatuses API
+        description: ConstraintPodStatus is the Schema for the constraintpodstatuses API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
@@ -29,7 +30,7 @@ spec:
           metadata:
             type: object
           status:
-            description: ConstraintPodStatusStatus defines the observed state of ConstraintPodStatus
+            description: ConstraintPodStatusStatus defines the observed state of ConstraintPodStatus.
             properties:
               constraintUID:
                 description: Storing the constraint UID allows us to detect drift, such as when a constraint has been recreated after its CRD was deleted out from under it, interrupting the watch
@@ -38,7 +39,7 @@ spec:
                 type: boolean
               errors:
                 items:
-                  description: Error represents a single error caught while adding a constraint to OPA
+                  description: Error represents a single error caught while adding a constraint to OPA.
                   properties:
                     code:
                       type: string

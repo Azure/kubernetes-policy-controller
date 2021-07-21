@@ -50,7 +50,7 @@ spec:
             - "--logtostderr"
             - "--exempt-namespace=gatekeeper-system"
             - "--operation=webhook"
-          image: openpolicyagent/gatekeeper:v3.6.0-beta.2
+          image: openpolicyagent/gatekeeper:v3.6.0-beta.3
           imagePullPolicy: Always
           name: manager
           ports:
@@ -139,7 +139,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-          image: openpolicyagent/gatekeeper:v3.6.0-beta.2
+          image: openpolicyagent/gatekeeper:v3.6.0-beta.3
           imagePullPolicy: Always
           livenessProbe:
             httpGet:

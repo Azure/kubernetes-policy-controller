@@ -13,12 +13,13 @@ spec:
     listKind: ConfigList
     plural: configs
     singular: config
+  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Config is the Schema for the configs API
+        description: Config is the Schema for the configs API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
@@ -29,7 +30,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: ConfigSpec defines the desired state of Config
+            description: ConfigSpec defines the desired state of Config.
             properties:
               match:
                 description: Configuration for namespace exclusion
@@ -37,6 +38,8 @@ spec:
                   properties:
                     excludedNamespaces:
                       items:
+                        description: 'A string that supports globbing at its end.  Ex: "kube-*" will match "kube-system" or "kube-public".  The asterisk is required for wildcard matching.'
+                        pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\*|-\*)?$
                         type: string
                       type: array
                     processes:
@@ -95,7 +98,7 @@ spec:
                 type: object
             type: object
           status:
-            description: ConfigStatus defines the observed state of Config
+            description: ConfigStatus defines the observed state of Config.
             type: object
         type: object
     served: true

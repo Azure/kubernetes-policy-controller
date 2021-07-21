@@ -53,6 +53,10 @@ spec:
         {{- range .Values.disabledBuiltins}}
         - --disable-opa-builtin={{ . }}
         {{- end }}
+        
+        {{- range .Values.controllerManager.exemptNamespaces}}
+        - --exempt-namespace={{ . }}
+        {{- end }}
         command:
         - /manager
         env:
@@ -106,7 +110,9 @@ spec:
         {{- toYaml .Values.image.pullSecrets | nindent 8 }}
       nodeSelector:
         {{- toYaml .Values.controllerManager.nodeSelector | nindent 8 }}
-      priorityClassName: {{ .Values.controllerManager.priorityClassName }}
+      {{- if .Values.controllerManager.priorityClassName }} 
+      priorityClassName:  {{ .Values.controllerManager.priorityClassName }}
+      {{- end }}
       serviceAccountName: gatekeeper-admin
       terminationGracePeriodSeconds: 60
       tolerations:

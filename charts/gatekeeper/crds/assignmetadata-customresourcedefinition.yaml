@@ -13,12 +13,13 @@ spec:
     listKind: AssignMetadataList
     plural: assignmetadata
     singular: assignmetadata
+  preserveUnknownFields: false
   scope: Cluster
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: AssignMetadata is the Schema for the assignmetadata API
+        description: AssignMetadata is the Schema for the assignmetadata API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
@@ -29,7 +30,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: AssignMetadataSpec defines the desired state of AssignMetadata
+            description: AssignMetadataSpec defines the desired state of AssignMetadata.
             properties:
               location:
                 type: string
@@ -132,18 +133,18 @@ spec:
                 type: object
             type: object
           status:
-            description: AssignMetadataStatus defines the observed state of AssignMetadata
+            description: AssignMetadataStatus defines the observed state of AssignMetadata.
             properties:
               byPod:
                 description: 'INSERT ADDITIONAL STATUS FIELD - define observed state of cluster Important: Run "make" to regenerate code after modifying this file'
                 items:
-                  description: MutatorPodStatusStatus defines the observed state of MutatorPodStatus
+                  description: MutatorPodStatusStatus defines the observed state of MutatorPodStatus.
                   properties:
                     enforced:
                       type: boolean
                     errors:
                       items:
-                        description: MutatorError represents a single error caught while adding a mutator to a system
+                        description: MutatorError represents a single error caught while adding a mutator to a system.
                         properties:
                           message:
                             type: string

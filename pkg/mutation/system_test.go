@@ -98,7 +98,7 @@ func (m *fakeMutator) SchemaBindings() []schema.GroupVersionKind {
 	return m.GVKs
 }
 
-var mutators = []types.Mutator{
+var initMutators = []types.Mutator{
 	&fakeMutator{MID: types.ID{Group: "bbb", Kind: "aaa", Namespace: "aaa", Name: "aaa"}},
 	&fakeMutator{MID: types.ID{Group: "aaa", Kind: "bbb", Namespace: "ccc", Name: "ddd"}},
 	&fakeMutator{MID: types.ID{Group: "aaa", Kind: "bbb", Namespace: "aaa", Name: "aaa"}},
@@ -116,7 +116,7 @@ func TestSorting(t *testing.T) {
 	}{
 		{
 			tname:   "testsort",
-			initial: mutators,
+			initial: initMutators,
 			expected: []types.Mutator{
 				&fakeMutator{MID: types.ID{Group: "aaa", Kind: "aaa", Namespace: "aaa", Name: "aaa"}},
 				&fakeMutator{MID: types.ID{Group: "aaa", Kind: "aaa", Namespace: "ccc", Name: "ddd"}},
@@ -129,7 +129,7 @@ func TestSorting(t *testing.T) {
 		},
 		{
 			tname:   "testremove",
-			initial: mutators,
+			initial: initMutators,
 			expected: []types.Mutator{
 				&fakeMutator{MID: types.ID{Group: "aaa", Kind: "aaa", Namespace: "aaa", Name: "aaa"}},
 				&fakeMutator{MID: types.ID{Group: "aaa", Kind: "aaa", Namespace: "ccc", Name: "ddd"}},
@@ -143,7 +143,7 @@ func TestSorting(t *testing.T) {
 		},
 		{
 			tname:   "testaddingsame",
-			initial: mutators,
+			initial: initMutators,
 			expected: []types.Mutator{
 				&fakeMutator{MID: types.ID{Group: "aaa", Kind: "aaa", Namespace: "aaa", Name: "aaa"}},
 				&fakeMutator{MID: types.ID{Group: "aaa", Kind: "aaa", Namespace: "ccc", Name: "ddd"}},
@@ -158,7 +158,7 @@ func TestSorting(t *testing.T) {
 		},
 		{
 			tname:   "testaddingdifferent",
-			initial: mutators,
+			initial: initMutators,
 			expected: []types.Mutator{
 				&fakeMutator{MID: types.ID{Group: "aaa", Kind: "aaa", Namespace: "aaa", Name: "aaa"}},
 				&fakeMutator{MID: types.ID{Group: "aaa", Kind: "aaa", Namespace: "ccc", Name: "ddd"}},

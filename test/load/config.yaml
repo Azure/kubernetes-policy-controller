@@ -1,0 +1,58 @@
+{{$POD_COUNT := DefaultParam .CL2_POD_COUNT 100}}
+{{$POD_THROUGHPUT := DefaultParam .CL2_POD_THROUGHPUT 5}}
+{{$CONTAINER_IMAGE := DefaultParam .CONTAINER_IMAGE "k8s.gcr.io/pause:3.1"}}
+{{$OPERATION_TIMEOUT := DefaultParam .OPERATION_TIMEOUT "15m"}}
+{{$WAIT_TIME := DefaultParam .CL2_WAIT_TIME "1m"}}
+
+name: load-test
+automanagedNamespaces: {{$POD_COUNT}}
+tuningSets:
+  - name: UniformQPS
+    qpsLoad:
+      qps: {{$POD_THROUGHPUT}}
+steps:
+  - name: Starting measurements
+    measurements:
+      - Identifier: ResourceUsageSummary
+        Method: ResourceUsageSummary
+        Params:
+          action: start
+          namespace: ""
+  - measurements:
+      - Identifier: WaitForRunningLatencyRCs
+        Method: WaitForControlledPodsRunning
+        Params:
+          action: start
+          apiVersion: v1
+          kind: ReplicationController
+          labelSelector: group = latency
+          operationTimeout: {{$OPERATION_TIMEOUT}}
+  - phases:
+      - namespaceRange:
+          min: 1
+          max: {{$POD_COUNT}}
+        replicasPerNamespace: 1
+        tuningSet: UniformQPS
+        objectBundle:
+          - basename: latency-pod-rc
+            objectTemplatePath: rc.yaml
+            templateFillMap:
+              Replicas: 1
+              Group: latency
+  - measurements:
+      - Identifier: WaitForRunningLatencyRCs
+        Method: WaitForControlledPodsRunning
+        Params:
+          action: gather
+# waiting for audit to finish
+  - name: Wait
+    measurements:
+      - Identifier: Wait
+        Method: Sleep
+        Params:
+          duration: {{$WAIT_TIME}}
+  - measurements:
+      - Identifier: ResourceUsageSummary
+        Method: ResourceUsageSummary
+        Params:
+          action: gather

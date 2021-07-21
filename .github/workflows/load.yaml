@@ -1,0 +1,113 @@
+name: load_test
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  trigger:
+    name: Trigger load test
+    runs-on: ubuntu-latest
+    if: ${{ github.event.issue.pull_request }}
+    timeout-minutes: 1
+    steps:
+      - uses: khan/pull-request-comment-trigger@1.0.0
+        id: comment-check
+        with:
+          trigger: '/load-test'
+          reaction: rocket
+        env:
+          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+      - run: |
+          # cancel run if the comment didn't trigger load test
+          curl \
+            -X POST https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/cancel \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token $GITHUB_TOKEN"
+        if: steps.comment-check.outputs.triggered == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  load_test:
+    name: "Run load test"
+    runs-on: ubuntu-latest
+    if: ${{ github.event.issue.pull_request }}
+    needs: trigger
+    timeout-minutes: 30
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+
+      - name: Checkout clusterloader2
+        run: |
+          git clone https://github.com/kubernetes/perf-tests.git
+
+      - name: Bootstrap e2e
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/bin
+          echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
+          make e2e-bootstrap
+
+      - name: Deploy Gatekeeper
+        run: |
+          make e2e-build-load-image IMG=gatekeeper-e2e:latest
+          make deploy IMG=gatekeeper-e2e:latest USE_LOCAL_IMG=true
+
+      - name: Deploy policies
+        run: |
+          ./test/load/deploy-policies.sh
+        env:
+          NUMBER_TEMPLATES: 5
+          NUMBER_CONSTRAINTS: 5
+
+      - name: Run load tests
+        run: |
+          ./run-e2e.sh cluster-loader2 \
+            --nodes=1 \
+            --provider=local \
+            --report-dir="$GITHUB_WORKSPACE/_artifacts" \
+            --testconfig="$GITHUB_WORKSPACE/test/load/config.yaml"
+        working-directory: perf-tests
+        env:
+          CL2_POD_COUNT: 50
+          CL2_POD_THROUGHPUT: 5
+          CL2_WAIT_TIME: 5m
+
+      - name: Fix invalid characters
+        run: |
+          for f in *:*; do mv -v "$f" $(echo "$f" | tr ':' '-'); done
+        working-directory: _artifacts
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        if: ${{ always() }}
+        with:
+          name: load_test_results
+          path: |
+            _artifacts/*.json
+
+      - name: Build results
+        id: get-comment-body
+        env:
+          URL: ${{ github.event.issue.comments_url }}
+        run: |
+          echo "### Load test [results](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})" > results.txt
+          echo "Resource usage summary for 100 percentile:" >> results.txt
+          echo "\`\`\`" >> results.txt
+          cat _artifacts/*.json | \
+            jq -r '["NAME","CPU","MEMORY"], ["----","---","------"], (."100"[] | select((.Name | startswith("gatekeeper")) or (.Name | startswith("kube-apiserver"))) | [.Name, .CPU, .Mem]) | @tsv' | \
+            column -t >> results.txt
+          echo "\`\`\`" >> results.txt
+          cat results.txt
+
+          body=$(cat results.txt)
+          body="${body//$'\n'/'%0A'}"
+          body="${body//$'\r'/'%0D'}"
+          echo ::set-output name=body::$body
+
+      - name: Create commit comment
+        uses: peter-evans/commit-comment@v1
+        with:
+          body: ${{ steps.get-comment-body.outputs.body }}
+          sha: ${{ github.event.pull_request.head.sha }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

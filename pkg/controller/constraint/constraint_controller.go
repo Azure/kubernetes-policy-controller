@@ -37,7 +37,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -62,9 +61,8 @@ type Adder struct {
 	ControllerSwitch *watch.ControllerSwitch
 	Events           <-chan event.GenericEvent
 	Tracker          *readiness.Tracker
-	GetPod           func() (*corev1.Pod, error)
+	GetPod           func(context.Context) (*corev1.Pod, error)
 	ProcessExcluder  *process.Excluder
-	AssumeDeleted    func(schema.GroupVersionKind) bool
 }
 
 func (a *Adder) InjectOpa(o *opa.Client) {
@@ -87,8 +85,8 @@ func (a *Adder) InjectMutationCache(mutationCache *mutation.System) {}
 
 // Add creates a new Constraint Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
-func (a *Adder) Add(ctx context.Context, mgr manager.Manager) error {
-	reporter, err := newStatsReporter(ctx)
+func (a *Adder) Add(mgr manager.Manager) error {
+	reporter, err := newStatsReporter()
 	if err != nil {
 		log.Error(err, "StatsReporter could not start")
 		return err
@@ -97,9 +95,6 @@ func (a *Adder) Add(ctx context.Context, mgr manager.Manager) error {
 	r := newReconciler(mgr, a.Opa, a.ControllerSwitch, reporter, a.ConstraintsCache, a.Tracker)
 	if a.GetPod != nil {
 		r.getPod = a.GetPod
-	}
-	if a.AssumeDeleted != nil {
-		r.assumeDeleted = a.AssumeDeleted
 	}
 	return add(mgr, r, a.Events)
 }
@@ -137,8 +132,6 @@ func newReconciler(
 		tracker:          tracker,
 	}
 	r.getPod = r.defaultGetPod
-	// default
-	r.assumeDeleted = func(schema.GroupVersionKind) bool { return false }
 	return r
 }
 
@@ -188,10 +181,7 @@ type ReconcileConstraint struct {
 	reporter         StatsReporter
 	constraintsCache *ConstraintsCache
 	tracker          *readiness.Tracker
-	getPod           func() (*corev1.Pod, error)
-	// assumeDeleted allows us to short-circuit get requests
-	// that would otherwise trigger a watch
-	assumeDeleted func(schema.GroupVersionKind) bool
+	getPod           func(context.Context) (*corev1.Pod, error)
 }
 
 // +kubebuilder:rbac:groups=constraints.gatekeeper.sh,resources=*,verbs=get;list;watch;create;update;patch;delete
@@ -226,11 +216,7 @@ func (r *ReconcileConstraint) Reconcile(ctx context.Context, request reconcile.R
 	deleted := false
 	instance := &unstructured.Unstructured{}
 	instance.SetGroupVersionKind(gvk)
-	if r.assumeDeleted(gvk) {
-		deleted = true
-		instance.SetNamespace(unpackedRequest.NamespacedName.Namespace)
-		instance.SetName(unpackedRequest.NamespacedName.Name)
-	} else if err := r.reader.Get(ctx, unpackedRequest.NamespacedName, instance); err != nil {
+	if err := r.reader.Get(ctx, unpackedRequest.NamespacedName, instance); err != nil {
 		if !errors.IsNotFound(err) && !meta.IsNoMatchError(err) {
 			return reconcile.Result{}, err
 		}
@@ -252,7 +238,7 @@ func (r *ReconcileConstraint) Reconcile(ctx context.Context, request reconcile.R
 	reportMetrics := false
 	defer func() {
 		if reportMetrics {
-			r.constraintsCache.reportTotalConstraints(r.reporter)
+			r.constraintsCache.reportTotalConstraints(ctx, r.reporter)
 		}
 	}()
 
@@ -265,7 +251,7 @@ func (r *ReconcileConstraint) Reconcile(ctx context.Context, request reconcile.R
 
 	if !deleted {
 		r.log.Info("handling constraint update", "instance", instance)
-		status, err := r.getOrCreatePodStatus(instance)
+		status, err := r.getOrCreatePodStatus(ctx, instance)
 		if err != nil {
 			log.Info("could not get/create pod status object", "error", err)
 			return reconcile.Result{}, err
@@ -332,27 +318,27 @@ func (r *ReconcileConstraint) Reconcile(ctx context.Context, request reconcile.R
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileConstraint) defaultGetPod() (*corev1.Pod, error) {
+func (r *ReconcileConstraint) defaultGetPod(_ context.Context) (*corev1.Pod, error) {
 	// require injection of GetPod in order to control what client we use to
 	// guarantee we don't inadvertently create a watch
 	panic("GetPod must be injected")
 }
 
-func (r *ReconcileConstraint) getOrCreatePodStatus(constraint *unstructured.Unstructured) (*constraintstatusv1beta1.ConstraintPodStatus, error) {
+func (r *ReconcileConstraint) getOrCreatePodStatus(ctx context.Context, constraint *unstructured.Unstructured) (*constraintstatusv1beta1.ConstraintPodStatus, error) {
 	statusObj := &constraintstatusv1beta1.ConstraintPodStatus{}
 	sName, err := constraintstatusv1beta1.KeyForConstraint(util.GetPodName(), constraint)
 	if err != nil {
 		return nil, err
 	}
 	key := types.NamespacedName{Name: sName, Namespace: util.GetNamespace()}
-	if err := r.reader.Get(context.TODO(), key, statusObj); err != nil {
+	if err := r.reader.Get(ctx, key, statusObj); err != nil {
 		if !errors.IsNotFound(err) {
 			return nil, err
 		}
 	} else {
 		return statusObj, nil
 	}
-	pod, err := r.getPod()
+	pod, err := r.getPod(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -360,7 +346,7 @@ func (r *ReconcileConstraint) getOrCreatePodStatus(constraint *unstructured.Unst
 	if err != nil {
 		return nil, err
 	}
-	if err := r.writer.Create(context.TODO(), statusObj); err != nil {
+	if err := r.writer.Create(ctx, statusObj); err != nil {
 		return nil, err
 	}
 	return statusObj, nil
@@ -461,7 +447,7 @@ func (c *ConstraintsCache) deleteConstraintKey(constraintKey string) {
 	delete(c.cache, constraintKey)
 }
 
-func (c *ConstraintsCache) reportTotalConstraints(reporter StatsReporter) {
+func (c *ConstraintsCache) reportTotalConstraints(ctx context.Context, reporter StatsReporter) {
 	c.mux.RLock()
 	defer c.mux.RUnlock()
 
@@ -473,7 +459,7 @@ func (c *ConstraintsCache) reportTotalConstraints(reporter StatsReporter) {
 
 	for _, enforcementAction := range util.KnownEnforcementActions {
 		for _, status := range metrics.AllStatuses {
-			if err := reporter.reportConstraints(
+			if err := reporter.reportConstraints(ctx,
 				tags{
 					enforcementAction: enforcementAction,
 					status:            status,

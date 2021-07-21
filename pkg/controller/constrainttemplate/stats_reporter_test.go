@@ -1,6 +1,7 @@
 package constrainttemplate
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -26,11 +27,12 @@ func TestReportIngestion(t *testing.T) {
 	if err != nil {
 		t.Errorf("newStatsReporter() error %v", err)
 	}
-	err = r.reportIngestDuration(metrics.ActiveStatus, expectedDurationValueMin)
+	ctx := context.Background()
+	err = r.reportIngestDuration(ctx, metrics.ActiveStatus, expectedDurationValueMin)
 	if err != nil {
 		t.Errorf("reportIngestDuration error %v", err)
 	}
-	err = r.reportIngestDuration(metrics.ActiveStatus, expectedDurationValueMax)
+	err = r.reportIngestDuration(ctx, metrics.ActiveStatus, expectedDurationValueMax)
 	if err != nil {
 		t.Errorf("reportIngestDuration error %v", err)
 	}
@@ -76,7 +78,7 @@ func TestGauges(t *testing.T) {
 	}
 	tc := []struct {
 		name string
-		fn   func(metrics.Status, int64) error
+		fn   func(context.Context, metrics.Status, int64) error
 	}{
 		{
 			name: ctMetricName,
@@ -91,7 +93,8 @@ func TestGauges(t *testing.T) {
 				"status": "active",
 			}
 
-			err = tt.fn(metrics.ActiveStatus, expectedValue)
+			ctx := context.Background()
+			err = tt.fn(ctx, metrics.ActiveStatus, expectedValue)
 			if err != nil {
 				t.Errorf("function error %v", err)
 			}

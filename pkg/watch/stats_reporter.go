@@ -6,7 +6,6 @@ import (
 	"github.com/open-policy-agent/gatekeeper/pkg/metrics"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
-	"go.opencensus.io/tag"
 )
 
 const (
@@ -44,26 +43,17 @@ func register() error {
 	return view.Register(views...)
 }
 
-func (r *reporter) reportGvkCount(count int64) error {
-	return metrics.Record(r.ctx, gvkCountM.M(count))
+func (r *reporter) reportGvkCount(ctx context.Context, count int64) error {
+	return metrics.Record(ctx, gvkCountM.M(count))
 }
 
-func (r *reporter) reportGvkIntentCount(count int64) error {
-	return metrics.Record(r.ctx, gvkIntentCountM.M(count))
+func (r *reporter) reportGvkIntentCount(ctx context.Context, count int64) error {
+	return metrics.Record(ctx, gvkIntentCountM.M(count))
 }
 
 // newStatsReporter creates a reporter for watch metrics.
 func newStatsReporter() (*reporter, error) {
-	ctx, err := tag.New(
-		context.TODO(),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &reporter{ctx: ctx}, nil
+	return &reporter{}, nil
 }
 
-type reporter struct {
-	ctx context.Context
-}
+type reporter struct{}

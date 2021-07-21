@@ -60,7 +60,7 @@ type Adder struct {
 
 // Add creates a new ConfigController and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
-func (a *Adder) Add(_ context.Context, mgr manager.Manager) error {
+func (a *Adder) Add(mgr manager.Manager) error {
 	// Events will be used to receive events from dynamic watches registered
 	// via the registrar below.
 	events := make(chan event.GenericEvent, 1024)
@@ -308,7 +308,7 @@ func (r *ReconcileConfig) wipeCacheIfNeeded(ctx context.Context) error {
 
 		// reset sync cache before sending the metric
 		r.syncMetricsCache.ResetCache()
-		r.syncMetricsCache.ReportSync(&syncc.Reporter{Ctx: ctx})
+		r.syncMetricsCache.ReportSync(ctx, &syncc.Reporter{})
 
 		r.needsWipe = false
 	}
@@ -333,7 +333,7 @@ func (r *ReconcileConfig) replayData(ctx context.Context) error {
 			return fmt.Errorf("replaying data for %+v: %w", gvk, err)
 		}
 
-		defer r.syncMetricsCache.ReportSync(&syncc.Reporter{Ctx: ctx})
+		defer r.syncMetricsCache.ReportSync(ctx, &syncc.Reporter{})
 
 		for i := range u.Items {
 			syncKey := r.syncMetricsCache.GetSyncKey(u.Items[i].GetNamespace(), u.Items[i].GetName())

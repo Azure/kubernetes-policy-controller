@@ -94,12 +94,12 @@ func (r *recordKeeper) RemoveRegistrar(ctx context.Context, parentName string) e
 	return nil
 }
 
-func (r *recordKeeper) Update(parentName string, m vitalsByGVK) {
+func (r *recordKeeper) Update(ctx context.Context, parentName string, m vitalsByGVK) {
 	r.intentMux.Lock()
 	defer r.intentMux.Unlock()
 
 	defer func() {
-		if err := r.metrics.reportGvkIntentCount(int64(r.count())); err != nil {
+		if err := r.metrics.reportGvkIntentCount(ctx, int64(r.count())); err != nil {
 			log.Error(err, "while reporting gvk intent count metric")
 		}
 	}()
@@ -114,11 +114,11 @@ func (r *recordKeeper) Update(parentName string, m vitalsByGVK) {
 
 // ReplaceRegistrarRoster replaces the desired set of watches for the specified registrar using provided roster.
 // Ownership is taken over roster - it is not currently deep-copied.
-func (r *recordKeeper) ReplaceRegistrarRoster(reg *Registrar, roster map[schema.GroupVersionKind]vitals) {
+func (r *recordKeeper) ReplaceRegistrarRoster(ctx context.Context, reg *Registrar, roster map[schema.GroupVersionKind]vitals) {
 	r.intentMux.Lock()
 	defer r.intentMux.Unlock()
 	defer func() {
-		if err := r.metrics.reportGvkIntentCount(int64(r.count())); err != nil {
+		if err := r.metrics.reportGvkIntentCount(ctx, int64(r.count())); err != nil {
 			log.Error(err, "while reporting gvk intent count metric")
 		}
 	}()
@@ -135,11 +135,11 @@ func (r *recordKeeper) Watching(parentName string, gvk schema.GroupVersionKind) 
 }
 
 // Remove removes the intent-to-watch a particular resource kind.
-func (r *recordKeeper) Remove(parentName string, gvk schema.GroupVersionKind) {
+func (r *recordKeeper) Remove(ctx context.Context, parentName string, gvk schema.GroupVersionKind) {
 	r.intentMux.Lock()
 	defer r.intentMux.Unlock()
 	defer func() {
-		if err := r.metrics.reportGvkIntentCount(int64(r.count())); err != nil {
+		if err := r.metrics.reportGvkIntentCount(ctx, int64(r.count())); err != nil {
 			log.Error(err, "while reporting gvk intent count metric")
 		}
 	}()
@@ -226,7 +226,7 @@ func (r *Registrar) AddWatch(ctx context.Context, gvk schema.GroupVersionKind) e
 		gvk:        gvk,
 		registrars: map[*Registrar]bool{r: true},
 	}
-	r.managedKinds.Update(r.parentName, vitalsByGVK{gvk: wv})
+	r.managedKinds.Update(ctx, r.parentName, vitalsByGVK{gvk: wv})
 	return r.mgr.addWatch(ctx, r, gvk)
 }
 
@@ -240,15 +240,15 @@ func (r *Registrar) ReplaceWatch(ctx context.Context, gvks []schema.GroupVersion
 		}
 		roster[gvk] = wv
 	}
-	r.managedKinds.ReplaceRegistrarRoster(r, roster)
+	r.managedKinds.ReplaceRegistrarRoster(ctx, r, roster)
 	return r.mgr.replaceWatches(ctx, r)
 }
 
 // RemoveWatch removes a watch for the given kind.
 // Ignores the request if the kind was not previously watched.
-func (r *Registrar) RemoveWatch(gvk schema.GroupVersionKind) error {
-	r.managedKinds.Remove(r.parentName, gvk)
-	return r.mgr.removeWatch(r, gvk)
+func (r *Registrar) RemoveWatch(ctx context.Context, gvk schema.GroupVersionKind) error {
+	r.managedKinds.Remove(ctx, r.parentName, gvk)
+	return r.mgr.removeWatch(ctx, r, gvk)
 }
 
 // Watching returns whether a given GVK is being watched by the

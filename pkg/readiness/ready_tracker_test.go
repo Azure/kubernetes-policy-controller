@@ -116,7 +116,7 @@ func setupController(ctx context.Context, mgr manager.Manager, wm *watch.Manager
 		WatchManger:      wm,
 		ControllerSwitch: sw,
 		Tracker:          tracker,
-		GetPod:           func() (*corev1.Pod, error) { return pod, nil },
+		GetPod:           func(ctx context.Context) (*corev1.Pod, error) { return pod, nil },
 		ProcessExcluder:  processExcluder,
 		MutationCache:    mutationSystem,
 	}

@@ -172,12 +172,12 @@ func TestRegistrar_AddWatch_Idempotent(t *testing.T) {
 		return
 	}
 
+	ctx := context.Background()
 	gvk := schema.GroupVersionKind{
 		Version: "v1",
 		Kind:    "Pod",
 	}
 
-	ctx := context.Background()
 	for _, r := range []*Registrar{r1, r2} {
 		if err := r.AddWatch(ctx, gvk); err != nil {
 			t.Errorf("setting initial watch: %v", err)
@@ -225,12 +225,12 @@ func TestRegistrar_RemoveWatch_Idempotent(t *testing.T) {
 		return
 	}
 
+	ctx := context.Background()
 	gvk := schema.GroupVersionKind{
 		Version: "v1",
 		Kind:    "Pod",
 	}
 
-	ctx := context.Background()
 	for _, r := range []*Registrar{r1, r2} {
 		if err := r.AddWatch(ctx, gvk); err != nil {
 			t.Errorf("setting initial watch: %v", err)
@@ -244,7 +244,7 @@ func TestRegistrar_RemoveWatch_Idempotent(t *testing.T) {
 		return
 	}
 
-	if err := r1.RemoveWatch(gvk); err != nil {
+	if err := r1.RemoveWatch(ctx, gvk); err != nil {
 		t.Errorf("removing first watch: %v", err)
 		return
 	}
@@ -261,7 +261,7 @@ func TestRegistrar_RemoveWatch_Idempotent(t *testing.T) {
 		return
 	}
 
-	if err := r2.RemoveWatch(gvk); err != nil {
+	if err := r2.RemoveWatch(ctx, gvk); err != nil {
 		t.Errorf("removing second watch: %v", err)
 		return
 	}
@@ -280,7 +280,7 @@ func TestRegistrar_RemoveWatch_Idempotent(t *testing.T) {
 	}
 
 	// Extra removes are fine.
-	if err := r2.RemoveWatch(gvk); err != nil {
+	if err := r2.RemoveWatch(ctx, gvk); err != nil {
 		t.Errorf("redundant remove: %v", err)
 		return
 	}
@@ -512,7 +512,7 @@ func TestRegistrar_Replay_Async(t *testing.T) {
 	}
 
 	// Ensure we can cancel a pending replay
-	if err := r2.RemoveWatch(gvk); err != nil {
+	if err := r2.RemoveWatch(ctx, gvk); err != nil {
 		t.Errorf("removing watch: %v", err)
 	}
 

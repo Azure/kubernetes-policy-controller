@@ -38,9 +38,9 @@ func register() error {
 	return view.Register(views...)
 }
 
-func (r *reporter) reportConstraints(t tags, v int64) error {
+func (r *reporter) reportConstraints(ctx context.Context, t tags, v int64) error {
 	ctx, err := tag.New(
-		r.ctx,
+		ctx,
 		tag.Insert(enforcementActionKey, string(t.enforcementAction)),
 		tag.Insert(statusKey, string(t.status)))
 	if err != nil {
@@ -52,22 +52,15 @@ func (r *reporter) reportConstraints(t tags, v int64) error {
 
 // StatsReporter reports audit metrics.
 type StatsReporter interface {
-	reportConstraints(t tags, v int64) error
+	reportConstraints(ctx context.Context, t tags, v int64) error
 }
 
 // newStatsReporter creaters a reporter for audit metrics.
-func newStatsReporter(ctx context.Context) (StatsReporter, error) {
-	ctx, err := tag.New(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return &reporter{ctx: ctx}, nil
+func newStatsReporter() (StatsReporter, error) {
+	return &reporter{}, nil
 }
 
-type reporter struct {
-	ctx context.Context
-}
+type reporter struct{}
 
 func (r *reporter) report(ctx context.Context, m stats.Measurement) error {
 	return metrics.Record(ctx, m)

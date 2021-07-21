@@ -149,13 +149,13 @@ func (r *ReconcileSync) Reconcile(ctx context.Context, request reconcile.Request
 	reportMetrics := false
 	defer func() {
 		if reportMetrics {
-			if err := r.reporter.reportSyncDuration(time.Since(timeStart)); err != nil {
+			if err := r.reporter.reportSyncDuration(ctx, time.Since(timeStart)); err != nil {
 				log.Error(err, "failed to report sync duration")
 			}
 
-			r.metricsCache.ReportSync(&r.reporter)
+			r.metricsCache.ReportSync(ctx, &r.reporter)
 
-			if err := r.reporter.reportLastSync(); err != nil {
+			if err := r.reporter.reportLastSync(ctx); err != nil {
 				log.Error(err, "failed to report last sync timestamp")
 			}
 		}
@@ -298,7 +298,7 @@ func (c *MetricsCache) DeleteObject(key string) {
 	delete(c.Cache, key)
 }
 
-func (c *MetricsCache) ReportSync(reporter *Reporter) {
+func (c *MetricsCache) ReportSync(ctx context.Context, reporter *Reporter) {
 	c.mux.RLock()
 	defer c.mux.RUnlock()
 
@@ -309,7 +309,7 @@ func (c *MetricsCache) ReportSync(reporter *Reporter) {
 
 	for kind := range c.KnownKinds {
 		for _, status := range metrics.AllStatuses {
-			if err := reporter.reportSync(
+			if err := reporter.reportSync(ctx,
 				Tags{
 					Kind:   kind,
 					Status: status,

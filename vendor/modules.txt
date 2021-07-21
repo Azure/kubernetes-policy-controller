@@ -162,7 +162,6 @@ github.com/open-policy-agent/cert-controller/pkg/rotator
 # github.com/open-policy-agent/frameworks/constraint v0.0.0-20210701194838-1dbe2618668d
 ## explicit
 github.com/open-policy-agent/frameworks/constraint/deploy
-github.com/open-policy-agent/frameworks/constraint/pkg/apis
 github.com/open-policy-agent/frameworks/constraint/pkg/apis/templates
 github.com/open-policy-agent/frameworks/constraint/pkg/apis/templates/v1
 github.com/open-policy-agent/frameworks/constraint/pkg/apis/templates/v1alpha1

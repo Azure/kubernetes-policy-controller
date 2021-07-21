@@ -193,19 +193,19 @@ func (wm *Manager) doAddWatch(ctx context.Context, r *Registrar, gvk schema.Grou
 		registrars: map[*Registrar]bool{r: true},
 	}
 	wm.watchedKinds[gvk] = watchers.merge(wv)
-	if err := wm.metrics.reportGvkCount(int64(len(wm.watchedKinds))); err != nil {
+	if err := wm.metrics.reportGvkCount(ctx, int64(len(wm.watchedKinds))); err != nil {
 		log.Error(err, "while trying to report gvk count metric")
 	}
 	return nil
 }
 
-func (wm *Manager) removeWatch(r *Registrar, gvk schema.GroupVersionKind) error {
+func (wm *Manager) removeWatch(ctx context.Context, r *Registrar, gvk schema.GroupVersionKind) error {
 	wm.watchedMux.Lock()
 	defer wm.watchedMux.Unlock()
-	return wm.doRemoveWatch(r, gvk)
+	return wm.doRemoveWatch(ctx, r, gvk)
 }
 
-func (wm *Manager) doRemoveWatch(r *Registrar, gvk schema.GroupVersionKind) error {
+func (wm *Manager) doRemoveWatch(ctx context.Context, r *Registrar, gvk schema.GroupVersionKind) error {
 	// lock acquired by caller
 
 	v, ok := wm.watchedKinds[gvk]
@@ -240,7 +240,7 @@ func (wm *Manager) doRemoveWatch(r *Registrar, gvk schema.GroupVersionKind) erro
 		return fmt.Errorf("removing %+v: %w", gvk, err)
 	}
 	delete(wm.watchedKinds, gvk)
-	if err := wm.metrics.reportGvkCount(int64(len(wm.watchedKinds))); err != nil {
+	if err := wm.metrics.reportGvkCount(ctx, int64(len(wm.watchedKinds))); err != nil {
 		log.Error(err, "while trying to report gvk count metric")
 	}
 	log.Info("watch removed", "gvk", gvk)
@@ -260,7 +260,7 @@ func (wm *Manager) replaceWatches(ctx context.Context, r *Registrar) error {
 			// This registrar still desires this gvk, skip.
 			continue
 		}
-		if err := wm.doRemoveWatch(r, gvk); err != nil {
+		if err := wm.doRemoveWatch(ctx, r, gvk); err != nil {
 			errlist = append(errlist, fmt.Errorf("removing watch for %+v %w", gvk, err))
 		}
 	}
@@ -275,7 +275,7 @@ func (wm *Manager) replaceWatches(ctx context.Context, r *Registrar) error {
 		}
 	}
 
-	if err := wm.metrics.reportGvkCount(int64(len(wm.watchedKinds))); err != nil {
+	if err := wm.metrics.reportGvkCount(ctx, int64(len(wm.watchedKinds))); err != nil {
 		log.Error(err, "while trying to report gvk count metric")
 	}
 

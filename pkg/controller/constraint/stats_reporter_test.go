@@ -16,11 +16,11 @@ func TestReportConstraints(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	r, err := newStatsReporter(ctx)
+	r, err := newStatsReporter()
 	if err != nil {
 		t.Errorf("newStatsReporter() error %v", err)
 	}
-	err = r.reportConstraints(expectedTags, expectedValue)
+	err = r.reportConstraints(ctx, expectedTags, expectedValue)
 	if err != nil {
 		t.Errorf("ReportConstraints error %v", err)
 	}

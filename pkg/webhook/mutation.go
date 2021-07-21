@@ -51,11 +51,11 @@ func init() {
 // TODO enable this once mutation is beta +kubebuilder:rbac:groups=*,resources=*,verbs=get;list;watch;update
 
 // AddMutatingWebhook registers the mutating webhook server with the manager.
-func AddMutatingWebhook(ctx context.Context, mgr manager.Manager, client *opa.Client, processExcluder *process.Excluder, mutationSystem *mutation.System) error {
+func AddMutatingWebhook(mgr manager.Manager, client *opa.Client, processExcluder *process.Excluder, mutationSystem *mutation.System) error {
 	if !*mutation.MutationEnabled {
 		return nil
 	}
-	reporter, err := newStatsReporter(ctx)
+	reporter, err := newStatsReporter()
 	if err != nil {
 		return err
 	}
@@ -115,14 +115,14 @@ func (h *mutationHandler) Handle(ctx context.Context, req admission.Request) adm
 		return admission.ValidationResponse(true, "Mutating only on create or update")
 	}
 
-	if h.isGatekeeperResource(ctx, &req) {
+	if h.isGatekeeperResource(&req) {
 		return admission.ValidationResponse(true, "Not mutating gatekeeper resources")
 	}
 
 	requestResponse := unknownResponse
 	defer func() {
 		if h.reporter != nil {
-			if err := h.reporter.ReportMutationRequest(requestResponse, time.Since(timeStart)); err != nil {
+			if err := h.reporter.ReportMutationRequest(ctx, requestResponse, time.Since(timeStart)); err != nil {
 				log.Error(err, "failed to report request")
 			}
 		}

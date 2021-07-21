@@ -100,13 +100,12 @@ func TestReconcile(t *testing.T) {
 	podstatus.DisablePodOwnership()
 	pod := &corev1.Pod{}
 	pod.Name = "no-pod"
-	rec := newReconciler(mgr, mSys, tracker, func() (*corev1.Pod, error) { return pod, nil })
+	rec := newReconciler(mgr, mSys, tracker, func(context.Context) (*corev1.Pod, error) { return pod, nil })
 
 	recFn, _ := SetupTestReconcile(rec)
 	g.Expect(add(mgr, recFn)).NotTo(gomega.HaveOccurred())
 	statusAdder := &mutatorstatus.Adder{}
-	ctx := context.Background()
-	g.Expect(statusAdder.Add(ctx, mgr)).NotTo(gomega.HaveOccurred())
+	g.Expect(statusAdder.Add(mgr)).NotTo(gomega.HaveOccurred())
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	mgrStopped := StartTestManager(ctx, mgr, g)

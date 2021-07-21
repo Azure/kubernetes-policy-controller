@@ -733,7 +733,7 @@ func TestValidateConfigResource(t *testing.T) {
 				},
 			}
 
-			err := handler.validateConfigResource(context.Background(), req)
+			err := handler.validateConfigResource(req)
 
 			if tt.Err && err == nil {
 				t.Errorf("Expected error but received nil")

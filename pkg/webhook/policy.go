@@ -68,8 +68,8 @@ func init() {
 // +kubebuilder:rbac:groups=*,resources=*,verbs=get;list;watch
 
 // AddPolicyWebhook registers the policy webhook server with the manager.
-func AddPolicyWebhook(ctx context.Context, mgr manager.Manager, opa *opa.Client, processExcluder *process.Excluder, mutationCache *mutation.System) error {
-	reporter, err := newStatsReporter(ctx)
+func AddPolicyWebhook(mgr manager.Manager, opa *opa.Client, processExcluder *process.Excluder, mutationCache *mutation.System) error {
+	reporter, err := newStatsReporter()
 	if err != nil {
 		return err
 	}
@@ -155,7 +155,7 @@ func (h *validationHandler) Handle(ctx context.Context, req admission.Request) a
 	requestResponse := unknownResponse
 	defer func() {
 		if h.reporter != nil {
-			if err := h.reporter.ReportValidationRequest(requestResponse, time.Since(timeStart)); err != nil {
+			if err := h.reporter.ReportValidationRequest(ctx, requestResponse, time.Since(timeStart)); err != nil {
 				log.Error(err, "failed to report request")
 			}
 		}
@@ -317,13 +317,13 @@ func (h *validationHandler) validateGatekeeperResources(ctx context.Context, req
 	case gvk.Group == "constraints.gatekeeper.sh":
 		return h.validateConstraint(ctx, req)
 	case gvk.Group == "config.gatekeeper.sh" && gvk.Kind == "Config":
-		if err := h.validateConfigResource(ctx, req); err != nil {
+		if err := h.validateConfigResource(req); err != nil {
 			return true, err
 		}
 	case req.AdmissionRequest.Kind.Group == mutationsGroup && req.AdmissionRequest.Kind.Kind == "AssignMetadata":
-		return h.validateAssignMetadata(ctx, req)
+		return h.validateAssignMetadata(req)
 	case req.AdmissionRequest.Kind.Group == mutationsGroup && req.AdmissionRequest.Kind.Kind == "Assign":
-		return h.validateAssign(ctx, req)
+		return h.validateAssign(req)
 	}
 
 	return false, nil
@@ -371,14 +371,14 @@ func (h *validationHandler) validateConstraint(ctx context.Context, req *admissi
 	return false, nil
 }
 
-func (h *validationHandler) validateConfigResource(ctx context.Context, req *admission.Request) error {
+func (h *validationHandler) validateConfigResource(req *admission.Request) error {
 	if req.Name != keys.Config.Name {
 		return fmt.Errorf("config resource must have name 'config'")
 	}
 	return nil
 }
 
-func (h *validationHandler) validateAssignMetadata(ctx context.Context, req *admission.Request) (bool, error) {
+func (h *validationHandler) validateAssignMetadata(req *admission.Request) (bool, error) {
 	obj, _, err := deserializer.Decode(req.AdmissionRequest.Object.Raw, nil, &mutationsv1alpha1.AssignMetadata{})
 	if err != nil {
 		return false, err
@@ -395,7 +395,7 @@ func (h *validationHandler) validateAssignMetadata(ctx context.Context, req *adm
 	return false, nil
 }
 
-func (h *validationHandler) validateAssign(ctx context.Context, req *admission.Request) (bool, error) {
+func (h *validationHandler) validateAssign(req *admission.Request) (bool, error) {
 	obj, _, err := deserializer.Decode(req.AdmissionRequest.Object.Raw, nil, &mutationsv1alpha1.Assign{})
 	if err != nil {
 		return false, err

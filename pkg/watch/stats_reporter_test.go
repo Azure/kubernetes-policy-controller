@@ -1,6 +1,7 @@
 package watch
 
 import (
+	"context"
 	"testing"
 
 	"go.opencensus.io/stats/view"
@@ -13,7 +14,7 @@ func TestGauges(t *testing.T) {
 	}
 	tc := []struct {
 		name string
-		fn   func(int64) error
+		fn   func(context.Context, int64) error
 	}{
 		{
 			name: gvkCountMetricName,
@@ -29,7 +30,8 @@ func TestGauges(t *testing.T) {
 			const expectedValue int64 = 10
 			const expectedRowLength = 1
 
-			err = tt.fn(expectedValue)
+			ctx := context.Background()
+			err = tt.fn(ctx, expectedValue)
 			if err != nil {
 				t.Errorf("function error %v", err)
 			}

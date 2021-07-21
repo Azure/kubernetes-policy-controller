@@ -41,37 +41,30 @@ func init() {
 
 // StatsReporter reports webhook metrics.
 type StatsReporter interface {
-	ReportValidationRequest(response requestResponse, d time.Duration) error
-	ReportMutationRequest(response requestResponse, d time.Duration) error
+	ReportValidationRequest(ctx context.Context, response requestResponse, d time.Duration) error
+	ReportMutationRequest(ctx context.Context, response requestResponse, d time.Duration) error
 }
 
 // reporter implements StatsReporter interface.
-type reporter struct {
-	ctx context.Context
-}
+type reporter struct{}
 
 // newStatsReporter creaters a reporter for webhook metrics.
-func newStatsReporter(ctx context.Context) (StatsReporter, error) {
-	ctx, err := tag.New(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return &reporter{ctx: ctx}, nil
+func newStatsReporter() (StatsReporter, error) {
+	return &reporter{}, nil
 }
 
-func (r *reporter) ReportValidationRequest(response requestResponse, d time.Duration) error {
-	return r.reportRequest(response, admissionStatusKey, validationResponseTimeInSecM.M(d.Seconds()))
+func (r *reporter) ReportValidationRequest(ctx context.Context, response requestResponse, d time.Duration) error {
+	return r.reportRequest(ctx, response, admissionStatusKey, validationResponseTimeInSecM.M(d.Seconds()))
 }
 
-func (r *reporter) ReportMutationRequest(response requestResponse, d time.Duration) error {
-	return r.reportRequest(response, mutationStatusKey, mutationResponseTimeInSecM.M(d.Seconds()))
+func (r *reporter) ReportMutationRequest(ctx context.Context, response requestResponse, d time.Duration) error {
+	return r.reportRequest(ctx, response, mutationStatusKey, mutationResponseTimeInSecM.M(d.Seconds()))
 }
 
 // Captures req count metric, recording the count and the duration.
-func (r *reporter) reportRequest(response requestResponse, statusKey tag.Key, m stats.Measurement) error {
+func (r *reporter) reportRequest(ctx context.Context, response requestResponse, statusKey tag.Key, m stats.Measurement) error {
 	ctx, err := tag.New(
-		r.ctx,
+		ctx,
 		tag.Insert(statusKey, string(response)),
 	)
 	if err != nil {

@@ -132,10 +132,9 @@ violation[{"msg": "denied!"}] {
 		WatchManager:     wm,
 		ControllerSwitch: cs,
 		Tracker:          tracker,
-		GetPod:           func() (*corev1.Pod, error) { return pod, nil },
+		GetPod:           func(context.Context) (*corev1.Pod, error) { return pod, nil },
 	}
-	ctx := context.Background()
-	g.Expect(adder.Add(ctx, mgr)).NotTo(gomega.HaveOccurred())
+	g.Expect(adder.Add(mgr)).NotTo(gomega.HaveOccurred())
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	mgrStopped := StartTestManager(ctx, mgr, g)

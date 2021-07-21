@@ -290,7 +290,7 @@ func setupControllers(mgr ctrl.Manager, sw *watch.ControllerSwitch, tracker *rea
 
 	if operations.IsAssigned(operations.Webhook) {
 		setupLog.Info("setting up webhooks")
-		if err := webhook.AddToManager(ctx, mgr, client, processExcluder, mutationCache); err != nil {
+		if err := webhook.AddToManager(mgr, client, processExcluder, mutationCache); err != nil {
 			setupLog.Error(err, "unable to register webhooks with the manager")
 			os.Exit(1)
 		}

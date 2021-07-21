@@ -277,11 +277,8 @@ func setupControllers(mgr ctrl.Manager, sw *watch.ControllerSwitch, tracker *rea
 		setupLog.Error(err, "unable to initialize metrics reporter")
 	}
 
-	mutationSystem := mutation.NewSystem(reporter, &mutationReporter{})
-	if err != nil {
-		setupLog.Error(err, "unable to create mutation system")
-		os.Exit(1)
-	}
+	mutationSystem := mutation.NewSystem(reporter)
+	mutationSystem.InjectReporting(&mutationReporter{})
 
 	c := mgr.GetCache()
 	dc, ok := c.(watch.RemovableCache)

@@ -19,7 +19,7 @@ import (
 )
 
 func TestWebhookAssign(t *testing.T) {
-	sys := mutation.NewSystem(nil, nil)
+	sys := mutation.NewSystem(nil)
 
 	v := &mutationsv1alpha1.Assign{
 		ObjectMeta: metav1.ObjectMeta{Name: "AddFoo"},
@@ -86,7 +86,7 @@ func TestWebhookAssign(t *testing.T) {
 }
 
 func TestWebhookAssignMetadata(t *testing.T) {
-	sys := mutation.NewSystem(nil, nil)
+	sys := mutation.NewSystem(nil)
 
 	v := &mutationsv1alpha1.AssignMetadata{
 		ObjectMeta: metav1.ObjectMeta{Name: "AddFoo"},

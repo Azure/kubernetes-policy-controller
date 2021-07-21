@@ -99,7 +99,7 @@ func TestReconcile(t *testing.T) {
 		t.Error(errors.Wrapf(err, "Failed to instantiate stats reporter"))
 	}
 
-	mSys := mutation.NewSystem(rep, nil)
+	mSys := mutation.NewSystem(rep)
 	tracker, err := readiness.SetupTracker(mgr, true)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	os.Setenv("POD_NAME", "no-pod")

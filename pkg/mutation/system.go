@@ -27,20 +27,25 @@ type System struct {
 	metricsHooks    SystemReporter
 }
 
+// JULIAN - I can remove this interface once I've reattched the mutation stats_reporter call to a
+// reporter object.  Than I can just expect a pointer to that object and it will support being nil.
 type SystemReporter interface {
 	ReportIterationConvergence(r *metrics.Reporter, scs SystemConvergenceStatus, iterations int) error
 }
 
 // NewSystem initializes an empty mutation system.
-func NewSystem(reporter *metrics.Reporter, metricsHooks SystemReporter) *System {
+func NewSystem(reporter *metrics.Reporter) *System {
 	// JULIAN - metricsHooks can be nil.  Should I throw an error for that?
 	return &System{
 		schemaDB:        *schema.New(),
 		orderedMutators: make([]types.Mutator, 0),
 		mutatorsMap:     make(map[types.ID]types.Mutator),
 		reporter:        reporter,
-		metricsHooks:    metricsHooks,
 	}
+}
+
+func (s *System) InjectReporting(sr SystemReporter) {
+	s.metricsHooks = sr
 }
 
 // Upsert updates or insert the given object, and returns

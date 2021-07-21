@@ -18,14 +18,13 @@ type Filter struct{}
 // - Test: "require-foo-label-and-bar-annotation", Case: "missing-label-and-annotation"
 //
 // 2) NewFilter("missing-label")
-// Matches tests which either have a name containing "missing-label" or which
-// are in a constraint test containing "missing-label". Matches the following:
+// Matches cases which either have a name containing "missing-label" or which
+// are in a test named "missing-label". Matches the following:
 // - Test: "forbid-missing-label", Case: "with-foo-label"
 // - Test: "required-labels", Case: "missing-label"
 //
 // 3) NewFilter("^require-foo-label$//")
-// Matches tests in constraints which exactly match "require-foo-label". Matches the
-// following:
+// Matches tests which exactly match "require-foo-label". Matches the following:
 // - Test: "require-foo-label", Case: "with-foo-label"
 // - Test: "require-foo-label", Case: "no-labels"
 //
@@ -39,21 +38,18 @@ func NewFilter(run string) (Filter, error) {
 	return Filter{}, nil
 }
 
-// MatchesTest filters the set of constraint tests to run by constraint name
-// and the tests contained in the constraint. Returns true if tests in the constraint
-// should be run.
+// MatchesTest filters the set of tests to run by test name
+// and the cases contained in the test. Returns true if the Test should be run.
 //
-// If a constraint regex was specified, returns true if the constraint regex
-// matches `constraint`.
-// If a constraint regex was not specified but a test regex was, returns true if
-// at least one test in `tests` matches the test regex.
+// If a test regex was not specified but a case regex was, returns true if
+// at least one case in `c` matches the case regex.
 func (f Filter) MatchesTest(c Test) bool {
 	return true
 }
 
-// MatchesCase filters the set of tests to run by name.
+// MatchesCase filters Cases to run by name.
 //
-// Returns true if the test regex matches test.
-func (f Filter) MatchesCase(t Case) bool {
+// Returns true if the case regex matches c.
+func (f Filter) MatchesCase(c Case) bool {
 	return true
 }

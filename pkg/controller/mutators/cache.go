@@ -1,4 +1,4 @@
-package mutation
+package mutators
 
 import (
 	"sync"

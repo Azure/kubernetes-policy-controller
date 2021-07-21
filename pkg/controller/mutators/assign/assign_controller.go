@@ -24,6 +24,7 @@ import (
 	opa "github.com/open-policy-agent/frameworks/constraint/pkg/client"
 	mutationsv1alpha1 "github.com/open-policy-agent/gatekeeper/apis/mutations/v1alpha1"
 	statusv1beta1 "github.com/open-policy-agent/gatekeeper/apis/status/v1beta1"
+	ctrlmutators "github.com/open-policy-agent/gatekeeper/pkg/controller/mutators"
 	"github.com/open-policy-agent/gatekeeper/pkg/controller/mutatorstatus"
 	"github.com/open-policy-agent/gatekeeper/pkg/logging"
 	"github.com/open-policy-agent/gatekeeper/pkg/metrics"
@@ -101,7 +102,7 @@ func newReconciler(mgr manager.Manager, mutationSystem *mutation.System, tracker
 		getPod:   getPod,
 		scheme:   mgr.GetScheme(),
 		reporter: metricsReporter,
-		cache:    mutation.NewMutationCache(),
+		cache:    ctrlmutators.NewMutationCache(),
 	}
 	if getPod == nil {
 		r.getPod = r.defaultGetPod
@@ -147,7 +148,7 @@ type Reconciler struct {
 	getPod   func() (*corev1.Pod, error)
 	scheme   *runtime.Scheme
 	reporter *metrics.Reporter
-	cache    *mutation.Cache
+	cache    *ctrlmutators.Cache
 }
 
 // +kubebuilder:rbac:groups=mutations.gatekeeper.sh,resources=*,verbs=get;list;watch;create;update;patch;delete
@@ -210,7 +211,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 	}
 
 	// Since we aren't deleting the mutator, we are either adding or updating
-	ingestionStatus := mutation.MutatorStatusError
+	ingestionStatus := ctrlmutators.MutatorStatusError
 	defer func() {
 		r.cache.Upsert(mID, ingestionStatus)
 
@@ -218,12 +219,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 			return
 		}
 
-		if err := mutation.ReportMutatorIngestionRequest(r.reporter, ingestionStatus, time.Since(timeStart)); err != nil {
+		if err := ctrlmutators.ReportMutatorIngestionRequest(r.reporter, ingestionStatus, time.Since(timeStart)); err != nil {
 			log.Error(err, "failed to report mutator ingestion request")
 		}
 
 		for status, count := range r.cache.Tally() {
-			if err = mutation.ReportMutatorsStatus(r.reporter, status, count); err != nil {
+			if err = ctrlmutators.ReportMutatorsStatus(r.reporter, status, count); err != nil {
 				log.Error(err, "failed to report mutator status request")
 			}
 		}
@@ -267,7 +268,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 		return reconcile.Result{}, err
 	}
 
-	ingestionStatus = mutation.MutatorStatusActive
+	ingestionStatus = ctrlmutators.MutatorStatusActive
 	return reconcile.Result{}, nil
 }
 

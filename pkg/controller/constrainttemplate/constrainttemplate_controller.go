@@ -116,6 +116,15 @@ func (a *Adder) InjectMetricsReporter(metricsReporter *metrics.Reporter) {}
 // regEvents is the channel registered by Registrar to put the events in
 // cstrEvents and regEvents point to same event channel except for testing.
 func newReconciler(mgr manager.Manager, opa *opa.Client, wm *watch.Manager, cs *watch.ControllerSwitch, tracker *readiness.Tracker, cstrEvents <-chan event.GenericEvent, regEvents chan<- event.GenericEvent, getPod func() (*corev1.Pod, error)) (*ReconcileConstraintTemplate, error) {
+	w, err := wm.NewRegistrar(ctrlName, regEvents)
+	if err != nil {
+		return nil, err
+	}
+	statusW, err := wm.NewRegistrar(ctrlName+"-status", regEvents)
+	if err != nil {
+		return nil, err
+	}
+
 	// constraintsCache contains total number of constraints and shared mutex
 	constraintsCache := constraint.NewConstraintsCache()
 
@@ -128,6 +137,7 @@ func newReconciler(mgr manager.Manager, opa *opa.Client, wm *watch.Manager, cs *
 		Events:           cstrEvents,
 		Tracker:          tracker,
 		GetPod:           getPod,
+		AssumeDeleted:    func(gvk schema.GroupVersionKind) bool { return !w.Watching(gvk) },
 	}
 	// Create subordinate controller - we will feed it events dynamically via watch
 	if err := constraintAdder.Add(mgr); err != nil {
@@ -143,6 +153,7 @@ func newReconciler(mgr manager.Manager, opa *opa.Client, wm *watch.Manager, cs *
 			WatchManager:     wm,
 			ControllerSwitch: cs,
 			Events:           statusEvents,
+			AssumeDeleted:    func(gvk schema.GroupVersionKind) bool { return !statusW.Watching(gvk) },
 		}
 		if err := csAdder.Add(mgr); err != nil {
 			return nil, err
@@ -158,14 +169,6 @@ func newReconciler(mgr manager.Manager, opa *opa.Client, wm *watch.Manager, cs *
 		}
 	}
 
-	w, err := wm.NewRegistrar(ctrlName, regEvents)
-	if err != nil {
-		return nil, err
-	}
-	statusW, err := wm.NewRegistrar(ctrlName+"-status", regEvents)
-	if err != nil {
-		return nil, err
-	}
 	r, err := newStatsReporter()
 	if err != nil {
 		return nil, err

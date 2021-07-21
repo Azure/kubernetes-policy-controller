@@ -48,28 +48,33 @@ type Adder struct {
 	WatchManager     *watch.Manager
 	ControllerSwitch *watch.ControllerSwitch
 	Events           <-chan event.GenericEvent
+	AssumeDeleted    func(schema.GroupVersionKind) bool
 }
 
 // Add creates a new Constraint Status Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func (a *Adder) Add(mgr manager.Manager) error {
 	r := newReconciler(mgr, a.ControllerSwitch)
+	if a.AssumeDeleted != nil {
+		r.assumeDeleted = a.AssumeDeleted
+	}
 	return add(mgr, r, a.Events)
 }
 
 // newReconciler returns a new reconcile.Reconciler.
 func newReconciler(
 	mgr manager.Manager,
-	cs *watch.ControllerSwitch) reconcile.Reconciler {
+	cs *watch.ControllerSwitch) *ReconcileConstraintStatus {
 	return &ReconcileConstraintStatus{
 		// Separate reader and writer because manager's default client bypasses the cache for unstructured resources.
 		writer:       mgr.GetClient(),
 		statusClient: mgr.GetClient(),
 		reader:       mgr.GetCache(),
 
-		cs:     cs,
-		scheme: mgr.GetScheme(),
-		log:    log,
+		cs:            cs,
+		scheme:        mgr.GetScheme(),
+		log:           log,
+		assumeDeleted: func(schema.GroupVersionKind) bool { return false },
 	}
 }
 
@@ -142,9 +147,10 @@ type ReconcileConstraintStatus struct {
 	writer       client.Writer
 	statusClient client.StatusClient
 
-	cs     *watch.ControllerSwitch
-	scheme *runtime.Scheme
-	log    logr.Logger
+	cs            *watch.ControllerSwitch
+	scheme        *runtime.Scheme
+	log           logr.Logger
+	assumeDeleted func(schema.GroupVersionKind) bool
 }
 
 // +kubebuilder:rbac:groups=constraints.gatekeeper.sh,resources=*,verbs=get;list;watch;create;update;patch;delete
@@ -173,6 +179,11 @@ func (r *ReconcileConstraintStatus) Reconcile(ctx context.Context, request recon
 	if gvk.Group != v1beta1.ConstraintsGroup {
 		// Unrecoverable, do not retry.
 		log.Error(err, "invalid constraint GroupVersion", "gvk", gvk)
+		return reconcile.Result{}, nil
+	}
+
+	if r.assumeDeleted(gvk) {
+		// constraint is deleted, nothing to reconcile
 		return reconcile.Result{}, nil
 	}
 

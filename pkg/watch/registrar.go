@@ -125,6 +125,14 @@ func (r *recordKeeper) ReplaceRegistrarRoster(reg *Registrar, roster map[schema.
 	r.intent[reg.parentName] = roster
 }
 
+// Watching returns whether a GVK is being watched by a given registrar.
+func (r *recordKeeper) Watching(parentName string, gvk schema.GroupVersionKind) bool {
+	r.intentMux.RLock()
+	defer r.intentMux.RUnlock()
+	_, ok := r.intent[parentName][gvk]
+	return ok
+}
+
 // Remove removes the intent-to-watch a particular resource kind.
 func (r *recordKeeper) Remove(parentName string, gvk schema.GroupVersionKind) {
 	r.intentMux.Lock()
@@ -240,4 +248,10 @@ func (r *Registrar) ReplaceWatch(gvks []schema.GroupVersionKind) error {
 func (r *Registrar) RemoveWatch(gvk schema.GroupVersionKind) error {
 	r.managedKinds.Remove(r.parentName, gvk)
 	return r.mgr.removeWatch(r, gvk)
+}
+
+// Watching returns whether a given GVK is being watched by the
+// registrar.
+func (r *Registrar) Watching(gvk schema.GroupVersionKind) bool {
+	return r.managedKinds.Watching(r.parentName, gvk)
 }

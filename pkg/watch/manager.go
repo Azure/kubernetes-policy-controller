@@ -47,6 +47,9 @@ type Manager struct {
 	watchedKinds vitalsByGVK
 	metrics      *reporter
 
+	// replayTracker allows us to block until replays are complete (or fully canceled)
+	replayTracker *replayTracker
+
 	// Events are passed internally from informer event handlers to handleEvents for distribution.
 	events chan interface{}
 	// replayRequests is used to request or cancel replay for a registrar joining an existing watch.
@@ -81,6 +84,7 @@ func New(c RemovableCache) (*Manager, error) {
 		metrics:        metrics,
 		events:         make(chan interface{}, 1024),
 		replayRequests: make(chan replayRequest),
+		replayTracker:  newReplayTracker(),
 	}
 	wm.managedKinds.mgr = wm
 	return wm, nil
@@ -221,6 +225,15 @@ func (wm *Manager) doRemoveWatch(r *Registrar, gvk schema.GroupVersionKind) erro
 		return nil
 	}
 
+	log.Info("all watches removed for gvk, waiting for replays to end", "gvk", gvk)
+
+	// Wait until all replays have exited before canceling the watch,
+	// otherwise the list may unintentionally restart a watch
+	select {
+	case <-wm.replayTracker.replayWaitCh(gvk):
+	case <-wm.stopped:
+	}
+
 	u := &unstructured.Unstructured{}
 	u.SetGroupVersionKind(gvk)
 	if err := wm.cache.Remove(u); err != nil {
@@ -230,6 +243,7 @@ func (wm *Manager) doRemoveWatch(r *Registrar, gvk schema.GroupVersionKind) erro
 	if err := wm.metrics.reportGvkCount(int64(len(wm.watchedKinds))); err != nil {
 		log.Error(err, "while trying to report gvk count metric")
 	}
+	log.Info("watch removed", "gvk", gvk)
 	return nil
 }
 

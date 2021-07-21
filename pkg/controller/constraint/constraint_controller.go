@@ -37,6 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -63,6 +64,7 @@ type Adder struct {
 	Tracker          *readiness.Tracker
 	GetPod           func() (*corev1.Pod, error)
 	ProcessExcluder  *process.Excluder
+	AssumeDeleted    func(schema.GroupVersionKind) bool
 }
 
 func (a *Adder) InjectOpa(o *opa.Client) {
@@ -95,6 +97,9 @@ func (a *Adder) Add(mgr manager.Manager) error {
 	r := newReconciler(mgr, a.Opa, a.ControllerSwitch, reporter, a.ConstraintsCache, a.Tracker)
 	if a.GetPod != nil {
 		r.getPod = a.GetPod
+	}
+	if a.AssumeDeleted != nil {
+		r.assumeDeleted = a.AssumeDeleted
 	}
 	return add(mgr, r, a.Events)
 }
@@ -132,6 +137,8 @@ func newReconciler(
 		tracker:          tracker,
 	}
 	r.getPod = r.defaultGetPod
+	// default
+	r.assumeDeleted = func(schema.GroupVersionKind) bool { return false }
 	return r
 }
 
@@ -182,6 +189,9 @@ type ReconcileConstraint struct {
 	constraintsCache *ConstraintsCache
 	tracker          *readiness.Tracker
 	getPod           func() (*corev1.Pod, error)
+	// assumeDeleted allows us to short-circuit get requests
+	// that would otherwise trigger a watch
+	assumeDeleted func(schema.GroupVersionKind) bool
 }
 
 // +kubebuilder:rbac:groups=constraints.gatekeeper.sh,resources=*,verbs=get;list;watch;create;update;patch;delete
@@ -216,7 +226,11 @@ func (r *ReconcileConstraint) Reconcile(ctx context.Context, request reconcile.R
 	deleted := false
 	instance := &unstructured.Unstructured{}
 	instance.SetGroupVersionKind(gvk)
-	if err := r.reader.Get(ctx, unpackedRequest.NamespacedName, instance); err != nil {
+	if r.assumeDeleted(gvk) {
+		deleted = true
+		instance.SetNamespace(unpackedRequest.NamespacedName.Namespace)
+		instance.SetName(unpackedRequest.NamespacedName.Name)
+	} else if err := r.reader.Get(ctx, unpackedRequest.NamespacedName, instance); err != nil {
 		if !errors.IsNotFound(err) && !meta.IsNoMatchError(err) {
 			return reconcile.Result{}, err
 		}

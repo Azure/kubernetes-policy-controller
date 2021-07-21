@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package assign
+package assignmetadata
 
 import (
 	"context"
@@ -41,8 +41,8 @@ var cfg *rest.Config
 func TestMain(m *testing.M) {
 	t := &envtest.Environment{
 		CRDDirectoryPaths: []string{
-			filepath.Join("..", "..", "..", "vendor", "github.com", "open-policy-agent", "frameworks", "constraint", "deploy", "crds.yaml"),
-			filepath.Join("..", "..", "..", "config", "crd", "bases"),
+			filepath.Join("..", "..", "..", "..", "vendor", "github.com", "open-policy-agent", "frameworks", "constraint", "deploy", "crds.yaml"),
+			filepath.Join("..", "..", "..", "..", "config", "crd", "bases"),
 		},
 		ErrorIfCRDPathMissing: true,
 	}

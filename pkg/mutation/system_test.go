@@ -286,6 +286,7 @@ func TestMutation(t *testing.T) {
 			toMutate := &unstructured.Unstructured{Object: converted}
 
 			c := NewSystem()
+
 			for i, m := range tc.mutations {
 				err := c.Upsert(m)
 				if err != nil {
@@ -350,6 +351,7 @@ func TestSystem_DontApplyConflictingMutations(t *testing.T) {
 	}
 
 	s := NewSystem()
+
 	err := s.Upsert(foo)
 	if err != nil {
 		t.Fatalf("got Upsert() error = %v, want <nil>", err)
@@ -426,6 +428,7 @@ func TestSystem_DontApplyConflictingMutationsRemoveOriginal(t *testing.T) {
 
 	// Put System in an inconsistent state.
 	s := NewSystem()
+
 	err := s.Upsert(foo)
 	if err != nil {
 		t.Fatalf("got Upsert() error = %v, want <nil>", err)
@@ -506,5 +509,80 @@ func TestSystem_EarliestConflictingMutatorWins(t *testing.T) {
 	}
 	if s.Get(id("bar")).(*fakeMutator).MutationCount != 2 {
 		t.Errorf("got bar.MutationCount == %d, want 2", bar.MutationCount)
+	}
+}
+
+type fakeReporter struct {
+	called            bool
+	convergenceStatus SystemConvergenceStatus
+	iterations        int
+}
+
+func (fr *fakeReporter) ReportIterationConvergence(scs SystemConvergenceStatus, iterations int) error {
+	fr.called = true
+	fr.convergenceStatus = scs
+	fr.iterations = iterations
+	return nil
+}
+
+// TestSystem_ReportingInjection verifies that a system with injected reporting calls the reporting
+func TestSystem_ReportingInjection(t *testing.T) {
+	// Prepare a mutate-able object
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "testpod",
+			Namespace: "foo",
+		},
+	}
+
+	converted, err := runtime.DefaultUnstructuredConverter.ToUnstructured(pod)
+	if err != nil {
+		t.Fatal("Convert pod to unstructured failed")
+	}
+	toMutate := &unstructured.Unstructured{Object: converted}
+
+	// Define some mutators
+	mutators := []*fakeMutator{
+		{MID: types.ID{Group: "aaa", Kind: "aaa", Namespace: "aaa", Name: "aaa"}, Labels: map[string]string{
+			"ka": "va",
+		}, UnstableFor: 3},
+		{MID: types.ID{Group: "aaa", Kind: "aaa", Namespace: "aaa", Name: "bbb"}, Labels: map[string]string{
+			"kb": "vb",
+		}},
+		{MID: types.ID{Group: "aaa", Kind: "aaa", Namespace: "aaa", Name: "ccc"}, Labels: map[string]string{
+			"kb": "vb",
+		}},
+		{MID: types.ID{Group: "aaa", Kind: "aaa", Namespace: "aaa", Name: "ddd"}, Labels: map[string]string{
+			"kb": "vb",
+		}},
+	}
+
+	s := NewSystem()
+	fr := &fakeReporter{}
+	s.InjectReporting(fr)
+
+	for i, m := range mutators {
+		err := s.Upsert(m)
+		if err != nil {
+			t.Errorf("Failed inserting %dth object", i)
+		}
+	}
+
+	_, err = s.Mutate(toMutate, nil)
+
+	if err != nil {
+		t.Fatal("Mutate failed unexpectedly", err)
+	}
+
+	if !fr.called {
+		t.Fatal("Reporting function was not called")
+	}
+
+	if fr.convergenceStatus != SystemConvergenceTrue {
+		t.Errorf("Expected system to report %v but found %v", SystemConvergenceTrue, fr.convergenceStatus)
+	}
+
+	if fr.iterations != 4 {
+		t.Errorf("Expected system to report %v iterations but found %v", 4, fr.iterations)
 	}
 }

@@ -14,15 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package assign
+package assignmetadata
 
 import (
 	"context"
 	"fmt"
+	"time"
 
 	opa "github.com/open-policy-agent/frameworks/constraint/pkg/client"
 	mutationsv1alpha1 "github.com/open-policy-agent/gatekeeper/apis/mutations/v1alpha1"
 	statusv1beta1 "github.com/open-policy-agent/gatekeeper/apis/status/v1beta1"
+	ctrlmutators "github.com/open-policy-agent/gatekeeper/pkg/controller/mutators"
 	"github.com/open-policy-agent/gatekeeper/pkg/controller/mutatorstatus"
 	"github.com/open-policy-agent/gatekeeper/pkg/logging"
 	"github.com/open-policy-agent/gatekeeper/pkg/mutation"
@@ -46,24 +48,29 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-var log = logf.Log.WithName("controller").WithValues(logging.Process, "assign_controller")
+var log = logf.Log.WithName("controller").WithValues(logging.Process, "assignmetadata_controller")
 
-var gvkAssign = schema.GroupVersionKind{
+var gvkAssignMetadata = schema.GroupVersionKind{
 	Group:   mutationsv1alpha1.GroupVersion.Group,
 	Version: mutationsv1alpha1.GroupVersion.Version,
-	Kind:    "Assign",
+	Kind:    "AssignMetadata",
 }
 
 type Adder struct {
-	MutationCache *mutation.System
-	Tracker       *readiness.Tracker
-	GetPod        func() (*corev1.Pod, error)
+	MutationSystem *mutation.System
+	Tracker        *readiness.Tracker
+	GetPod         func() (*corev1.Pod, error)
 }
 
-// Add creates a new Assign Controller and adds it to the Manager. The Manager will set fields on the Controller
+// Add creates a new AssignMetadata Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func (a *Adder) Add(mgr manager.Manager) error {
-	r := newReconciler(mgr, a.MutationCache, a.Tracker, a.GetPod)
+	statsReporter, err := ctrlmutators.NewStatsReporter()
+	if err != nil {
+		return err
+	}
+
+	r := newReconciler(mgr, a.MutationSystem, a.Tracker, a.GetPod, statsReporter)
 	return add(mgr, r)
 }
 
@@ -81,18 +88,20 @@ func (a *Adder) InjectGetPod(getPod func() (*corev1.Pod, error)) {
 	a.GetPod = getPod
 }
 
-func (a *Adder) InjectMutationCache(mutationCache *mutation.System) {
-	a.MutationCache = mutationCache
+func (a *Adder) InjectMutationSystem(mutationSystem *mutation.System) {
+	a.MutationSystem = mutationSystem
 }
 
 // newReconciler returns a new reconcile.Reconciler.
-func newReconciler(mgr manager.Manager, mutationCache *mutation.System, tracker *readiness.Tracker, getPod func() (*corev1.Pod, error)) *Reconciler {
+func newReconciler(mgr manager.Manager, mutationSystem *mutation.System, tracker *readiness.Tracker, getPod func() (*corev1.Pod, error), statsReporter ctrlmutators.StatsReporter) *Reconciler {
 	r := &Reconciler{
-		system:  mutationCache,
-		Client:  mgr.GetClient(),
-		tracker: tracker,
-		getPod:  getPod,
-		scheme:  mgr.GetScheme(),
+		system:   mutationSystem,
+		Client:   mgr.GetClient(),
+		tracker:  tracker,
+		getPod:   getPod,
+		scheme:   mgr.GetScheme(),
+		reporter: statsReporter,
+		cache:    ctrlmutators.NewMutationCache(),
 	}
 	if getPod == nil {
 		r.getPod = r.defaultGetPod
@@ -107,14 +116,14 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Create a new controller
-	c, err := controller.New("assign-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New("assignmetadata-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
 
-	// Watch for changes to Assign
+	// Watch for changes to AssignMetadata
 	if err = c.Watch(
-		&source.Kind{Type: &mutationsv1alpha1.Assign{}},
+		&source.Kind{Type: &mutationsv1alpha1.AssignMetadata{}},
 		&handler.EnqueueRequestForObject{}); err != nil {
 		return err
 	}
@@ -122,7 +131,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Watch for changes to MutatorPodStatus
 	err = c.Watch(
 		&source.Kind{Type: &statusv1beta1.MutatorPodStatus{}},
-		handler.EnqueueRequestsFromMapFunc(mutatorstatus.PodStatusToMutatorMapper(true, "Assign", util.EventPackerMapFunc())),
+		handler.EnqueueRequestsFromMapFunc(mutatorstatus.PodStatusToMutatorMapper(true, "AssignMetadata", util.EventPackerMapFunc())),
 	)
 	if err != nil {
 		return err
@@ -130,47 +139,53 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-// Reconciler reconciles a Assign object.
+// Reconciler reconciles a AssignMetadata object.
 type Reconciler struct {
 	client.Client
-	system  *mutation.System
-	tracker *readiness.Tracker
-	getPod  func() (*corev1.Pod, error)
-	scheme  *runtime.Scheme
+	system   *mutation.System
+	tracker  *readiness.Tracker
+	getPod   func() (*corev1.Pod, error)
+	scheme   *runtime.Scheme
+	reporter ctrlmutators.StatsReporter
+	cache    *ctrlmutators.Cache
 }
 
 // +kubebuilder:rbac:groups=mutations.gatekeeper.sh,resources=*,verbs=get;list;watch;create;update;patch;delete
 
-// Reconcile reads that state of the cluster for a Assign object and makes changes based on the state read
-// and what is in the Assign.Spec.
+// Reconcile reads that state of the cluster for a AssignMetadata object and makes changes based on the state read
+// and what is in the AssignMetadata.Spec.
+// TODO (https://github.com/open-policy-agent/gatekeeper/issues/1449): DRY this and assign_controller.go.
 func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	log.Info("Reconcile", "request", request)
+	timeStart := time.Now()
+
 	deleted := false
-	assign := &mutationsv1alpha1.Assign{}
-	err := r.Get(ctx, request.NamespacedName, assign)
+	assignMetadata := &mutationsv1alpha1.AssignMetadata{}
+	err := r.Get(ctx, request.NamespacedName, assignMetadata)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
 		deleted = true
-		assign = &mutationsv1alpha1.Assign{
+		assignMetadata = &mutationsv1alpha1.AssignMetadata{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      request.NamespacedName.Name,
 				Namespace: request.NamespacedName.Namespace,
 			},
 			TypeMeta: metav1.TypeMeta{
-				Kind:       "Assign",
+				Kind:       "AssignMetadata",
 				APIVersion: fmt.Sprintf("%s/%s", mutationsv1alpha1.GroupVersion.Group, mutationsv1alpha1.GroupVersion.Version),
 			},
 		}
 	}
-	deleted = deleted || !assign.GetDeletionTimestamp().IsZero()
-	tracker := r.tracker.For(gvkAssign)
+	deleted = deleted || !assignMetadata.GetDeletionTimestamp().IsZero()
+	tracker := r.tracker.For(gvkAssignMetadata)
 
-	mID := types.MakeID(assign)
+	mID := types.MakeID(assignMetadata)
 
 	if deleted {
-		tracker.CancelExpect(assign)
+		tracker.CancelExpect(assignMetadata)
+		r.cache.Remove(mID)
 
 		if err := r.system.Remove(mID); err != nil {
 			log.Error(err, "Remove failed", "resource", request.NamespacedName)
@@ -193,19 +208,39 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 		return reconcile.Result{}, nil
 	}
 
+	// Since we aren't deleting the mutator, we are either adding or updating
+	ingestionStatus := ctrlmutators.MutatorStatusError
+	defer func() {
+		r.cache.Upsert(mID, ingestionStatus)
+
+		if r.reporter == nil {
+			return
+		}
+
+		if err := r.reporter.ReportMutatorIngestionRequest(ingestionStatus, time.Since(timeStart)); err != nil {
+			log.Error(err, "failed to report mutator ingestion request")
+		}
+
+		for status, count := range r.cache.Tally() {
+			if err = r.reporter.ReportMutatorsStatus(status, count); err != nil {
+				log.Error(err, "failed to report mutator status request")
+			}
+		}
+	}()
+
 	status, err := r.getOrCreatePodStatus(mID)
 	if err != nil {
 		log.Info("could not get/create pod status object", "error", err)
 		return reconcile.Result{}, err
 	}
-	status.Status.MutatorUID = assign.GetUID()
-	status.Status.ObservedGeneration = assign.GetGeneration()
+	status.Status.MutatorUID = assignMetadata.GetUID()
+	status.Status.ObservedGeneration = assignMetadata.GetGeneration()
 	status.Status.Errors = nil
 
-	mutator, err := mutators.MutatorForAssign(assign)
+	mutator, err := mutators.MutatorForAssignMetadata(assignMetadata)
 	if err != nil {
 		log.Error(err, "Creating mutator for resource failed", "resource", request.NamespacedName)
-		tracker.TryCancelExpect(assign)
+		tracker.TryCancelExpect(assignMetadata)
 		status.Status.Errors = append(status.Status.Errors, statusv1beta1.MutatorError{Message: err.Error()})
 		if err2 := r.Update(ctx, status); err != nil {
 			log.Error(err2, "could not update mutator status")
@@ -215,7 +250,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 
 	if err := r.system.Upsert(mutator); err != nil {
 		log.Error(err, "Insert failed", "resource", request.NamespacedName)
-		tracker.TryCancelExpect(assign)
+		tracker.TryCancelExpect(assignMetadata)
 		status.Status.Errors = append(status.Status.Errors, statusv1beta1.MutatorError{Message: err.Error()})
 		if err2 := r.Update(ctx, status); err != nil {
 			log.Error(err2, "could not update mutator status")
@@ -223,13 +258,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 		return reconcile.Result{}, err
 	}
 
-	tracker.Observe(assign)
+	tracker.Observe(assignMetadata)
 	status.Status.Enforced = true
 
 	if err := r.Update(ctx, status); err != nil {
 		log.Error(err, "could not update mutator status")
 		return reconcile.Result{}, err
 	}
+
+	ingestionStatus = ctrlmutators.MutatorStatusActive
 	return reconcile.Result{}, nil
 }
 

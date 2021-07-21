@@ -59,7 +59,7 @@ func (a *Adder) InjectControllerSwitch(cs *watch.ControllerSwitch) {}
 
 func (a *Adder) InjectTracker(t *readiness.Tracker) {}
 
-func (a *Adder) InjectMutationCache(mutationCache *mutation.System) {}
+func (a *Adder) InjectMutationSystem(mutationSystem *mutation.System) {}
 
 // Add creates a new Mutator Status Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.

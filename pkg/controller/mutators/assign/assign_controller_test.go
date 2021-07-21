@@ -96,13 +96,14 @@ func TestReconcile(t *testing.T) {
 	*mutation.MutationEnabled = true
 
 	mSys := mutation.NewSystem()
+
 	tracker, err := readiness.SetupTracker(mgr, true)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	os.Setenv("POD_NAME", "no-pod")
 	podstatus.DisablePodOwnership()
 	pod := &corev1.Pod{}
 	pod.Name = "no-pod"
-	rec := newReconciler(mgr, mSys, tracker, func() (*corev1.Pod, error) { return pod, nil })
+	rec := newReconciler(mgr, mSys, tracker, func() (*corev1.Pod, error) { return pod, nil }, nil)
 
 	recFn, _ := SetupTestReconcile(rec)
 	g.Expect(add(mgr, recFn)).NotTo(gomega.HaveOccurred())

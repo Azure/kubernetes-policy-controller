@@ -29,4 +29,13 @@ type Test struct {
 }
 
 // Case runs Constraint against a YAML object.
-type Case struct{}
+type Case struct {
+	Allow      string
+	Deny       string
+	Assertions []Assertion
+}
+
+type Assertion struct {
+	RejectionCount int
+	Message        string
+}

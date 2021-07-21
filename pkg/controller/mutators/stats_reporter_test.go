@@ -1,4 +1,4 @@
-package mutationreport
+package mutators
 
 import (
 	"testing"

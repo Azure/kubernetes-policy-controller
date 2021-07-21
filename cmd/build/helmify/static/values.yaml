@@ -36,6 +36,9 @@ secretAnnotations: {}
 controllerManager:
   exemptNamespaces: []
   hostNetwork: false
+  port: 8443
+  prometheusPort: 8888
+  healthPort: 9090
   priorityClassName: system-cluster-critical
   affinity:
     podAntiAffinity:

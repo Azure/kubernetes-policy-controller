@@ -78,3 +78,9 @@ patchesJson6902:
         path: /spec/template/spec/nodeSelector/kubernetes.io~1os
       - op: remove
         path: /spec/template/spec/affinity/podAntiAffinity
+      - op: remove
+        path: /spec/template/spec/containers/0/ports/3
+      - op: remove
+        path: /spec/template/spec/containers/0/ports/3
+      - op: remove
+        path: /spec/template/spec/containers/0/ports/3

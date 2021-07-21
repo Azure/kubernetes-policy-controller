@@ -63,7 +63,9 @@ spec:
       containers:
         - name: manager
           args:
-            - --port=8443
+            - --port=HELMSUBST_DEPLOYMENT_CONTROLLER_MANAGER_PORT
+            - --health-addr=:HELMSUBST_DEPLOYMENT_CONTROLLER_MANAGER_HEALTH_PORT
+            - --prometheus-port=HELMSUBST_DEPLOYMENT_CONTROLLER_MANAGER_PROMETHEUS_PORT
             - --logtostderr
             - --log-denies={{ .Values.logDenies }}
             - --emit-admission-events={{ .Values.emitAdmissionEvents }}
@@ -75,6 +77,24 @@ spec:
             - HELMSUBST_DEPLOYMENT_CONTROLLER_MANAGER_EXEMPT_NAMESPACES
           imagePullPolicy: "{{ .Values.image.pullPolicy }}"
           image: "{{ .Values.image.repository }}:{{ .Values.image.release }}"
+          ports:
+          - containerPort: HELMSUBST_DEPLOYMENT_CONTROLLER_MANAGER_PORT
+            name: webhook-server
+            protocol: TCP
+          - containerPort: HELMSUBST_DEPLOYMENT_CONTROLLER_MANAGER_PROMETHEUS_PORT
+            name: metrics
+            protocol: TCP
+          - containerPort: HELMSUBST_DEPLOYMENT_CONTROLLER_MANAGER_HEALTH_PORT
+            name: healthz
+            protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: HELMSUBST_DEPLOYMENT_CONTROLLER_MANAGER_HEALTH_PORT
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: HELMSUBST_DEPLOYMENT_CONTROLLER_MANAGER_HEALTH_PORT
           resources:
             HELMSUBST_DEPLOYMENT_CONTROLLER_MANAGER_CONTAINER_RESOURCES: ""
       nodeSelector:

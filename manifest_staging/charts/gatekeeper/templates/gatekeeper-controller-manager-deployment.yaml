@@ -41,7 +41,9 @@ spec:
       automountServiceAccountToken: true
       containers:
       - args:
-        - --port=8443
+        - --port={{ .Values.controllerManager.port }}
+        - --health-addr=:{{ .Values.controllerManager.healthPort }}
+        - --prometheus-port={{ .Values.controllerManager.prometheusPort }}
         - --logtostderr
         - --log-denies={{ .Values.logDenies }}
         - --emit-admission-events={{ .Values.emitAdmissionEvents }}
@@ -74,22 +76,22 @@ spec:
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 9090
+            port: {{ .Values.controllerManager.healthPort }}
         name: manager
         ports:
-        - containerPort: 8443
+        - containerPort: {{ .Values.controllerManager.port }}
           name: webhook-server
           protocol: TCP
-        - containerPort: 8888
+        - containerPort: {{ .Values.controllerManager.prometheusPort }}
           name: metrics
           protocol: TCP
-        - containerPort: 9090
+        - containerPort: {{ .Values.controllerManager.healthPort }}
           name: healthz
           protocol: TCP
         readinessProbe:
           httpGet:
             path: /readyz
-            port: 9090
+            port: {{ .Values.controllerManager.healthPort }}
         resources:
           {{- toYaml .Values.controllerManager.resources | nindent 10 }}
         securityContext:

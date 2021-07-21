@@ -20,6 +20,8 @@ type SystemConvergenceStatus string
 var (
 	systemConvergenceKey = tag.MustNewKey("success")
 
+	// JULIAN need to try making this a boolean somehow.
+
 	// SystemConvergenceTrue denotes a successfully converged mutation system request.
 	SystemConvergenceTrue SystemConvergenceStatus = "true"
 	// SystemConvergenceFalse denotes an unsuccessfully converged mutation system request.

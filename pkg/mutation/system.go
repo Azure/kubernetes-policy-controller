@@ -22,15 +22,7 @@ type System struct {
 	orderedMutators []types.Mutator
 	mutatorsMap     map[types.ID]types.Mutator
 	mux             sync.RWMutex
-	reporter        SystemReporter
-}
-
-// JULIAN - I can remove this interface once I've reattched the mutation stats_reporter call to a
-// reporter object.  Than I can just expect a pointer to that object and it will support being nil.
-
-// SystemReporter is an interface allowing us to pass a nil implementation of the reporting to the mutation system.
-type SystemReporter interface {
-	ReportIterationConvergence(scs SystemConvergenceStatus, iterations int) error
+	reporter        StatsReporter
 }
 
 // NewSystem initializes an empty mutation system.
@@ -42,7 +34,7 @@ func NewSystem() *System {
 	}
 }
 
-func (s *System) InjectReporting(sr SystemReporter) {
+func (s *System) InjectReporting(sr StatsReporter) {
 	s.reporter = sr
 }
 
@@ -105,22 +97,25 @@ func (s *System) Mutate(obj *unstructured.Unstructured, ns *corev1.Namespace) (b
 		allAppliedMutations = [][]types.Mutator{}
 	}
 
-	iterationsComplete := 0
+	iterations := 0
 	convergence := SystemConvergenceFalse
 	defer func() {
 		if s.reporter == nil {
 			return
 		}
 
-		err := s.reporter.ReportIterationConvergence(convergence, iterationsComplete)
+		err := s.reporter.ReportIterationConvergence(convergence, iterations)
 		if err != nil {
 			log.Error(err, "failed to report mutator ingestion request")
 		}
 	}()
 
 	for i := 0; i < maxIterations; i++ {
+		iterations++
+
 		var appliedMutations []types.Mutator
 		old := obj.DeepCopy()
+
 		for _, m := range s.orderedMutators {
 			if s.schemaDB.HasConflicts(m.ID()) {
 				// Don't try to apply Mutators which have conflicts.
@@ -143,6 +138,7 @@ func (s *System) Mutate(obj *unstructured.Unstructured, ns *corev1.Namespace) (b
 				}
 			}
 		}
+
 		if cmp.Equal(old, obj) {
 			if i == 0 {
 				// JULIAN - Is this right?  I believe that a system that doesn't do any mutations is converging.
@@ -173,15 +169,16 @@ func (s *System) Mutate(obj *unstructured.Unstructured, ns *corev1.Namespace) (b
 			convergence = SystemConvergenceTrue
 			return true, nil
 		}
+
 		if *MutationLoggingEnabled || *MutationAnnotationsEnabled {
 			allAppliedMutations = append(allAppliedMutations, appliedMutations)
 		}
-
-		iterationsComplete = i
 	}
+
 	if *MutationLoggingEnabled {
 		logAppliedMutations("Mutation not converging", mutationUUID, original, allAppliedMutations)
 	}
+
 	return false, fmt.Errorf("mutation %s not converging for %s %s %s %s",
 		mutationUUID,
 		obj.GroupVersionKind().Group,

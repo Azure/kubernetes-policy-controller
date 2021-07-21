@@ -37,11 +37,33 @@ func init() {
 	}
 }
 
+// StatsReporter reports mutator-related metrics.
+type StatsReporter interface {
+	ReportIterationConvergence(scs SystemConvergenceStatus, iterations int) error
+}
+
+// reporter implements StatsReporter interface.
+type reporter struct {
+	ctx context.Context
+}
+
+// NewStatsReporter creaters a reporter for webhook metrics.
+func NewStatsReporter() (StatsReporter, error) {
+	ctx, err := tag.New(
+		context.Background(),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &reporter{ctx: ctx}, nil
+}
+
 // ReportIterationConvergence reports the success or failure of the mutation system to converge.
 // It also records the number of system iterations that were required to reach this end.
-func ReportIterationConvergence(r *metrics.Reporter, scs SystemConvergenceStatus, iterations int) error {
+func (r *reporter) ReportIterationConvergence(scs SystemConvergenceStatus, iterations int) error {
 	ctx, err := tag.New(
-		r.Ctx,
+		r.ctx,
 		tag.Insert(systemConvergenceKey, string(scs)),
 	)
 	if err != nil {

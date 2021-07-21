@@ -3,12 +3,11 @@ package mutation
 import (
 	"testing"
 
-	"github.com/open-policy-agent/gatekeeper/pkg/metrics"
 	"go.opencensus.io/stats/view"
 )
 
 func TestReportIterationConvergence(t *testing.T) {
-	r, err := metrics.NewMetricsReporter()
+	r, err := NewStatsReporter()
 	if err != nil {
 		t.Errorf("newStatsReporter() error %v", err)
 	}
@@ -20,15 +19,15 @@ func TestReportIterationConvergence(t *testing.T) {
 		failureMin = failureMax
 	)
 
-	err = ReportIterationConvergence(r, SystemConvergenceTrue, successMax)
+	err = r.ReportIterationConvergence(SystemConvergenceTrue, successMax)
 	if err != nil {
 		t.Errorf("reportIterationConvergence error: %v", err)
 	}
-	err = ReportIterationConvergence(r, SystemConvergenceFalse, failureMax)
+	err = r.ReportIterationConvergence(SystemConvergenceFalse, failureMax)
 	if err != nil {
 		t.Errorf("reportIterationConvergence error: %v", err)
 	}
-	err = ReportIterationConvergence(r, SystemConvergenceTrue, successMin)
+	err = r.ReportIterationConvergence(SystemConvergenceTrue, successMin)
 	if err != nil {
 		t.Errorf("reportIterationConvergence error: %v", err)
 	}

@@ -30,14 +30,12 @@ import (
 	podstatus "github.com/open-policy-agent/gatekeeper/apis/status/v1beta1"
 	"github.com/open-policy-agent/gatekeeper/pkg/controller"
 	"github.com/open-policy-agent/gatekeeper/pkg/controller/config/process"
-	g8rmetrics "github.com/open-policy-agent/gatekeeper/pkg/metrics"
 	"github.com/open-policy-agent/gatekeeper/pkg/mutation"
 	mutationtypes "github.com/open-policy-agent/gatekeeper/pkg/mutation/types"
 	"github.com/open-policy-agent/gatekeeper/pkg/readiness"
 	"github.com/open-policy-agent/gatekeeper/pkg/target"
 	"github.com/open-policy-agent/gatekeeper/pkg/watch"
 	"github.com/open-policy-agent/gatekeeper/third_party/sigs.k8s.io/controller-runtime/pkg/dynamiccache"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -150,12 +148,7 @@ func Test_AssignMetadata(t *testing.T) {
 	mgr, wm := setupManager(t)
 	opaClient := setupOpa(t)
 
-	rep, err := g8rmetrics.NewMetricsReporter()
-	if err != nil {
-		t.Error(errors.Wrapf(err, "Failed to instantiate stats reporter"))
-	}
-
-	mutationSystem := mutation.NewSystem(rep)
+	mutationSystem := mutation.NewSystem()
 
 	if err := setupController(mgr, wm, opaClient, mutationSystem); err != nil {
 		t.Fatalf("setupControllers: %v", err)
@@ -204,11 +197,7 @@ func Test_Assign(t *testing.T) {
 	mgr, wm := setupManager(t)
 	opaClient := setupOpa(t)
 
-	rep, err := g8rmetrics.NewMetricsReporter()
-	if err != nil {
-		t.Error(errors.Wrapf(err, "Failed to instantiate stats reporter"))
-	}
-	mutationSystem := mutation.NewSystem(rep)
+	mutationSystem := mutation.NewSystem()
 
 	if err := setupController(mgr, wm, opaClient, mutationSystem); err != nil {
 		t.Fatalf("setupControllers: %v", err)

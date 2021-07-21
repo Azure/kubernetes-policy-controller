@@ -9,7 +9,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/open-policy-agent/gatekeeper/pkg/logging"
-	"github.com/open-policy-agent/gatekeeper/pkg/metrics"
 	"github.com/open-policy-agent/gatekeeper/pkg/mutation/schema"
 	"github.com/open-policy-agent/gatekeeper/pkg/mutation/types"
 	"github.com/pkg/errors"
@@ -23,8 +22,7 @@ type System struct {
 	orderedMutators []types.Mutator
 	mutatorsMap     map[types.ID]types.Mutator
 	mux             sync.RWMutex
-	reporter        *metrics.Reporter
-	metricsHooks    SystemReporter
+	reporter        SystemReporter
 }
 
 // JULIAN - I can remove this interface once I've reattched the mutation stats_reporter call to a
@@ -32,22 +30,20 @@ type System struct {
 
 // SystemReporter is an interface allowing us to pass a nil implementation of the reporting to the mutation system.
 type SystemReporter interface {
-	ReportIterationConvergence(r *metrics.Reporter, scs SystemConvergenceStatus, iterations int) error
+	ReportIterationConvergence(scs SystemConvergenceStatus, iterations int) error
 }
 
 // NewSystem initializes an empty mutation system.
-func NewSystem(reporter *metrics.Reporter) *System {
-	// JULIAN - metricsHooks can be nil.  Should I throw an error for that?
+func NewSystem() *System {
 	return &System{
 		schemaDB:        *schema.New(),
 		orderedMutators: make([]types.Mutator, 0),
 		mutatorsMap:     make(map[types.ID]types.Mutator),
-		reporter:        reporter,
 	}
 }
 
 func (s *System) InjectReporting(sr SystemReporter) {
-	s.metricsHooks = sr
+	s.reporter = sr
 }
 
 // Upsert updates or insert the given object, and returns
@@ -112,11 +108,11 @@ func (s *System) Mutate(obj *unstructured.Unstructured, ns *corev1.Namespace) (b
 	iterationsComplete := 0
 	convergence := SystemConvergenceFalse
 	defer func() {
-		if s.reporter == nil || s.metricsHooks == nil {
+		if s.reporter == nil {
 			return
 		}
 
-		err := s.metricsHooks.ReportIterationConvergence(s.reporter, convergence, iterationsComplete)
+		err := s.reporter.ReportIterationConvergence(convergence, iterationsComplete)
 		if err != nil {
 			log.Error(err, "failed to report mutator ingestion request")
 		}

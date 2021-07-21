@@ -181,7 +181,7 @@ func TestSorting(t *testing.T) {
 
 	for _, tc := range table {
 		t.Run(tc.tname, func(t *testing.T) {
-			c := NewSystem(nil)
+			c := NewSystem()
 			for i, m := range tc.initial {
 				err := c.Upsert(m)
 				if err != nil {
@@ -285,7 +285,7 @@ func TestMutation(t *testing.T) {
 			}
 			toMutate := &unstructured.Unstructured{Object: converted}
 
-			c := NewSystem(nil)
+			c := NewSystem()
 
 			for i, m := range tc.mutations {
 				err := c.Upsert(m)
@@ -350,7 +350,7 @@ func TestSystem_DontApplyConflictingMutations(t *testing.T) {
 		Labels: map[string]string{"active": "true"},
 	}
 
-	s := NewSystem(nil)
+	s := NewSystem()
 
 	err := s.Upsert(foo)
 	if err != nil {
@@ -427,7 +427,7 @@ func TestSystem_DontApplyConflictingMutationsRemoveOriginal(t *testing.T) {
 	}
 
 	// Put System in an inconsistent state.
-	s := NewSystem(nil)
+	s := NewSystem()
 
 	err := s.Upsert(foo)
 	if err != nil {
@@ -479,7 +479,7 @@ func TestSystem_EarliestConflictingMutatorWins(t *testing.T) {
 	}
 
 	// Put System in an inconsistent state.
-	s := NewSystem(nil)
+	s := NewSystem()
 	err := s.Upsert(foo)
 	if err != nil {
 		t.Fatalf("got Upsert() error = %v, want <nil>", err)

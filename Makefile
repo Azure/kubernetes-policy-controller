@@ -34,43 +34,6 @@ LDFLAGS := "-X github.com/open-policy-agent/gatekeeper/pkg/version.Version=$(VER
 	-X github.com/open-policy-agent/gatekeeper/pkg/version.Timestamp=$(BUILD_TIMESTAMP) \
 	-X github.com/open-policy-agent/gatekeeper/pkg/version.Hostname=$(BUILD_HOSTNAME)"
 
-MANAGER_IMAGE_PATCH := "apiVersion: apps/v1\
-\nkind: Deployment\
-\nmetadata:\
-\n  name: controller-manager\
-\n  namespace: system\
-\nspec:\
-\n  template:\
-\n    spec:\
-\n      containers:\
-\n      - image: <your image file>\
-\n        name: manager\
-\n        args:\
-\n        - --port=8443\
-\n        - --logtostderr\
-\n        - --emit-admission-events\
-\n        - --exempt-namespace=${GATEKEEPER_NAMESPACE}\
-\n        - --operation=webhook\
-\n        - --disable-opa-builtin=http.send\
-\n---\
-\napiVersion: apps/v1\
-\nkind: Deployment\
-\nmetadata:\
-\n  name: audit\
-\n  namespace: system\
-\nspec:\
-\n  template:\
-\n    spec:\
-\n      containers:\
-\n      - image: <your image file>\
-\n        name: manager\
-\n        args:\
-\n        - --emit-audit-events\
-\n        - --operation=audit\
-\n        - --operation=status\
-\n        - --logtostderr"
-
-
 FRAMEWORK_PACKAGE := github.com/open-policy-agent/frameworks/constraint
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -288,14 +251,14 @@ docker-buildx-release:
 # Update manager_image_patch.yaml with image tag
 patch-image:
 	@echo "updating kustomize image patch file for manager resource"
-	@bash -c 'echo -e ${MANAGER_IMAGE_PATCH} > ./config/overlays/dev/manager_image_patch.yaml'
-	cp ./config/overlays/dev/manager_image_patch.yaml ./config/overlays/dev_mutation/manager_image_patch.yaml
+	@cp ./hack/image_patch* ./config/overlays/dev/
+	@cp ./hack/image_patch* ./config/overlays/dev_mutation/
 ifeq ($(USE_LOCAL_IMG),true)
-	@sed -i '/^        name: manager/a \ \ \ \ \ \ \ \ imagePullPolicy: IfNotPresent' ./config/overlays/dev/manager_image_patch.yaml
-	@sed -i '/^        name: manager/a \ \ \ \ \ \ \ \ imagePullPolicy: IfNotPresent' ./config/overlays/dev_mutation/manager_image_patch.yaml
+	@sed -i '/^        name: manager/a \ \ \ \ \ \ \ \ imagePullPolicy: IfNotPresent' ./config/overlays/dev/image_patch*
+	@sed -i '/^        name: manager/a \ \ \ \ \ \ \ \ imagePullPolicy: IfNotPresent' ./config/overlays/dev_mutation/image_patch*
 endif
-	@sed -i'' -e 's@image: .*@image: '"${IMG}"'@' ./config/overlays/dev/manager_image_patch.yaml
-	@sed -i'' -e 's@image: .*@image: '"${IMG}"'@' ./config/overlays/dev_mutation/manager_image_patch.yaml
+	@sed -i'' -e 's@image: .*@image: '"${IMG}"'@' ./config/overlays/dev/image_patch*
+	@sed -i'' -e 's@image: .*@image: '"${IMG}"'@' ./config/overlays/dev_mutation/image_patch*
 
 # Rebuild pkg/target/target_template_source.go to pull in pkg/target/regolib/src.rego
 target-template-source:

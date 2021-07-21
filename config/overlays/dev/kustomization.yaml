@@ -5,4 +5,5 @@ resources:
   - ../../default
 
 patchesStrategicMerge:
-- manager_image_patch.yaml
+- image_patch_audit_manager.yaml
+- image_patch_controller_manager.yaml

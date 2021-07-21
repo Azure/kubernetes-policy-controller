@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audit
+  namespace: system
+spec:
+  template:
+    spec:
+      containers:
+      - image: <your image file>
+        name: manager
+        args:
+        - --port=8443
+        - --logtostderr
+        - --emit-admission-events
+        - --exempt-namespace=gatekeeper-system
+        - --operation=webhook
+        - --disable-opa-builtin=http.send

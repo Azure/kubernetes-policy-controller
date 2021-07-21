@@ -29,6 +29,8 @@ type System struct {
 
 // JULIAN - I can remove this interface once I've reattched the mutation stats_reporter call to a
 // reporter object.  Than I can just expect a pointer to that object and it will support being nil.
+
+// SystemReporter is an interface allowing us to pass a nil implementation of the reporting to the mutation system.
 type SystemReporter interface {
 	ReportIterationConvergence(r *metrics.Reporter, scs SystemConvergenceStatus, iterations int) error
 }

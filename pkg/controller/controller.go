@@ -46,7 +46,6 @@ type Injector interface {
 	InjectControllerSwitch(*watch.ControllerSwitch)
 	InjectTracker(tracker *readiness.Tracker)
 	InjectMutationSystem(mutationSystem *mutation.System)
-	InjectMetricsReporter(metricsReporter *metrics.Reporter)
 	Add(mgr manager.Manager) error
 }
 

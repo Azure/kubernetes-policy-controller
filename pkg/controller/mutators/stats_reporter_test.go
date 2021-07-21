@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/gatekeeper/pkg/metrics"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
 )
@@ -22,16 +21,16 @@ func TestReportMutatorIngestionRequest(t *testing.T) {
 		expectedRowLength                = 1
 	)
 
-	r, err := metrics.NewMetricsReporter()
+	r, err := NewStatsReporter()
 	if err != nil {
 		t.Errorf("newStatsReporter() error %v", err)
 	}
 
-	err = ReportMutatorIngestionRequest(r, MutatorStatusActive, expectedDurationValueMin)
+	err = r.ReportMutatorIngestionRequest(MutatorStatusActive, expectedDurationValueMin)
 	if err != nil {
 		t.Errorf("ReportRequest error %v", err)
 	}
-	err = ReportMutatorIngestionRequest(r, MutatorStatusActive, expectedDurationValueMax)
+	err = r.ReportMutatorIngestionRequest(MutatorStatusActive, expectedDurationValueMax)
 	if err != nil {
 		t.Errorf("ReportRequest error %v", err)
 	}

@@ -39,6 +39,10 @@ func init() {
 	}
 }
 
+// JULIAN - why does this interface exist?  I guess it hides the context from code outside this
+// package.  But that doesn't seem to actually do anything.  Why dont' we just make the context
+// in the reporting functions?
+
 // StatsReporter reports webhook metrics.
 type StatsReporter interface {
 	ReportValidationRequest(response requestResponse, d time.Duration) error

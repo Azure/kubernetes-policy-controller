@@ -44,12 +44,35 @@ func init() {
 	}
 }
 
+// StatsReporter reports mutator-related controller metrics.
+type StatsReporter interface {
+	ReportMutatorIngestionRequest(ms MutatorIngestionStatus, d time.Duration) error
+	ReportMutatorsStatus(ms MutatorIngestionStatus, n int) error
+}
+
+// reporter implements StatsReporter interface.
+type reporter struct {
+	ctx context.Context
+}
+
+// NewStatsReporter creaters a reporter for webhook metrics.
+func NewStatsReporter() (StatsReporter, error) {
+	ctx, err := tag.New(
+		context.Background(),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &reporter{ctx: ctx}, nil
+}
+
 // ReportMutatorIngestionRequest reports both the action of a mutator ingestion and the time
 // required for this request to complete.  The outcome of the ingestion attempt is recorded via the
 // status argument.
-func ReportMutatorIngestionRequest(r *metrics.Reporter, ms MutatorIngestionStatus, d time.Duration) error {
+func (r *reporter) ReportMutatorIngestionRequest(ms MutatorIngestionStatus, d time.Duration) error {
 	ctx, err := tag.New(
-		r.Ctx,
+		r.ctx,
 		tag.Insert(mutatorStatusKey, string(ms)),
 	)
 	if err != nil {
@@ -61,9 +84,9 @@ func ReportMutatorIngestionRequest(r *metrics.Reporter, ms MutatorIngestionStatu
 
 // ReportMutatorsStatus reports the number of mutators of a specific status that are present in the
 // mutation System.
-func ReportMutatorsStatus(r *metrics.Reporter, ms MutatorIngestionStatus, n int) error {
+func (r *reporter) ReportMutatorsStatus(ms MutatorIngestionStatus, n int) error {
 	ctx, err := tag.New(
-		r.Ctx,
+		r.ctx,
 		tag.Insert(mutatorStatusKey, string(ms)),
 	)
 	if err != nil {
